@@ -34,28 +34,6 @@ export default function Home() {
                 Never sit backwards again! Our intelligent system shows you which seats face forward based on your travel direction.
               </p>
             </div>
-
-            {/* Feature Icons */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                  <span className="text-xl">🧭</span>
-                </div>
-                <p className="text-xs text-gray-600 font-medium">Direction Guide</p>
-              </div>
-              <div className="text-center">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                  <span className="text-xl">📱</span>
-                </div>
-                <p className="text-xs text-gray-600 font-medium">Mobile Friendly</p>
-              </div>
-              <div className="text-center">
-                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                  <span className="text-xl">⚡</span>
-                </div>
-                <p className="text-xs text-gray-600 font-medium">Real-time</p>
-              </div>
-            </div>
           </div>
 
           {/* Search Component */}
