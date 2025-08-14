@@ -107,13 +107,29 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const data = await response.json()
     console.log(`[Next.js API] Train ${trainId} coaches data:`, data)
 
-    const coaches = data.coaches || []
+    // Extract coaches from the train_classes structure
+    let coaches: any[] = []
+    
+    if (data.train_classes && Array.isArray(data.train_classes)) {
+      // Extract coaches from train classes
+      data.train_classes.forEach((trainClass: any) => {
+        if (trainClass.coaches && Array.isArray(trainClass.coaches)) {
+          coaches = coaches.concat(trainClass.coaches.map((coach: any) => ({
+            ...coach,
+            class_name: trainClass.class_name,
+            class_short: trainClass.class_short
+          })))
+        }
+      })
+    } else if (data.coaches && Array.isArray(data.coaches)) {
+      coaches = data.coaches
+    }
 
     const transformedCoaches = coaches.map((coach: any) => ({
-      id: coach.id,
-      code: coach.code,
-      name: coach.code,
-      type: coach.type,
+      id: coach.coach_id || coach.id,
+      code: coach.coach_code || coach.code,
+      name: coach.coach_code || coach.code,
+      type: coach.class_name || coach.class_short || coach.type || 'S_CHAIR',
       totalSeats: coach.total_seats || 0,
       position: coach.position || 0,
       frontFacingSeats: coach.front_facing_seats || [],

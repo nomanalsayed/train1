@@ -4,18 +4,18 @@ import { SeatDirectionViewer } from "@/components/seat-direction-viewer";
 import { Button } from "@/components/ui/button";
 import { Home, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, use } from "react";
+import { useEffect, useState } from "react";
 
 interface PageProps {
-  params: Promise<{
+  params: {
     trainId: string;
-  }>;
-  searchParams: Promise<{
+  };
+  searchParams: {
     from?: string;
     to?: string;
     trainName?: string;
     coach?: string;
-  }>;
+  };
 }
 
 interface TrainData {
@@ -39,8 +39,6 @@ interface TrainData {
 }
 
 export default function SeatMapPage({ params, searchParams }: PageProps) {
-  const resolvedParams = use(params);
-  const resolvedSearchParams = use(searchParams);
   const [trainData, setTrainData] = useState<TrainData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,16 +50,16 @@ export default function SeatMapPage({ params, searchParams }: PageProps) {
         setLoading(true);
         setError(null);
 
-        if (!resolvedParams.trainId || resolvedParams.trainId === "undefined") {
+        if (!params.trainId || params.trainId === "undefined") {
           throw new Error("Train ID is missing or invalid");
         }
 
         const url = new URL(
-          `/api/trains/${resolvedParams.trainId}/detail`,
+          `/api/trains/${params.trainId}/detail`,
           window.location.origin,
         );
-        if (resolvedSearchParams.from) url.searchParams.set("from", resolvedSearchParams.from);
-        if (resolvedSearchParams.to) url.searchParams.set("to", resolvedSearchParams.to);
+        if (searchParams.from) url.searchParams.set("from", searchParams.from);
+        if (searchParams.to) url.searchParams.set("to", searchParams.to);
 
         const response = await fetch(url.toString());
 
@@ -81,7 +79,7 @@ export default function SeatMapPage({ params, searchParams }: PageProps) {
       }
     }
 
-    if (resolvedParams.trainId && resolvedParams.trainId !== "undefined") {
+    if (params.trainId && params.trainId !== "undefined") {
       fetchTrainData();
     } else {
       setLoading(false);
@@ -89,7 +87,7 @@ export default function SeatMapPage({ params, searchParams }: PageProps) {
         "Train ID is missing. Please select a train from the search page.",
       );
     }
-  }, [resolvedParams.trainId, resolvedSearchParams.from, resolvedSearchParams.to]);
+  }, [params.trainId, searchParams.from, searchParams.to]);
 
   if (loading) {
     return (
@@ -134,12 +132,12 @@ export default function SeatMapPage({ params, searchParams }: PageProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
       <SeatDirectionViewer
-        trainId={resolvedParams.trainId}
-        trainName={resolvedSearchParams.trainName || trainData.name}
-        trainNumber={resolvedParams.trainId}
-        from={resolvedSearchParams.from || trainData.fromStation?.title}
-        to={resolvedSearchParams.to || trainData.toStation?.title}
-        filterCoach={resolvedSearchParams.coach}
+        trainId={params.trainId}
+        trainName={searchParams.trainName || trainData.name}
+        trainNumber={params.trainId}
+        from={searchParams.from || trainData.fromStation?.title}
+        to={searchParams.to || trainData.toStation?.title}
+        filterCoach={searchParams.coach}
         trainData={trainData}
       />
     </div>

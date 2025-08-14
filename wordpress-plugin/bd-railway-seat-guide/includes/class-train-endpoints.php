@@ -265,48 +265,42 @@ class BD_Railway_Train_Endpoints {
      * Get train coaches
      */
     public function get_train_coaches($request) {
-        $train_id = intval($request['train_id']);
+        $train_id = $request['train_id'];
 
         $train = get_post($train_id);
-        if (!$train || $train->post_type !== $this->parent::TRAIN) {
-            return new WP_Error('train_not_found', 'Train not found', ['status' => 404]);
+        if (!$train || $train->post_type !== 'bd_train') {
+            return new WP_Error('train_not_found', 'Train not found', array('status' => 404));
         }
 
         // Get train classes and their coaches
-        $train_classes = get_field('train_classes', $train_id) ?: [];
-        $all_coaches = [];
-        $position = 1;
+        $train_classes = get_field('train_classes', $train_id);
+        $coaches = array();
 
-        foreach ($train_classes as $class) {
-            if (!empty($class['coaches'])) {
-                foreach ($class['coaches'] as $coach_data) {
-                    $coach_id = $coach_data['coach_id'];
-                    $coach = get_post($coach_id);
-
-                    if ($coach && $coach->post_type === $this->parent::COACH) {
-                        $seat_config = $this->parent->calculate_seat_directions($coach_id);
-
-                        $all_coaches[] = [
-                            'id' => $coach_id,
-                            'code' => get_field('coach_code', $coach_id) ?: $coach->post_title,
-                            'type' => $class['class_short'] ?? 'UNKNOWN',
-                            'total_seats' => $seat_config['total_seats'],
-                            'front_facing_seats' => $seat_config['front_facing_seats'],
-                            'back_facing_seats' => $seat_config['back_facing_seats'],
-                            'position' => $position++,
-                        ];
+        if ($train_classes) {
+            foreach ($train_classes as $class) {
+                if (isset($class['coaches'])) {
+                    foreach ($class['coaches'] as $coach) {
+                        $coaches[] = array(
+                            'coach_id' => $coach['coach_id'],
+                            'coach_code' => $coach['coach_code'],
+                            'type' => $class['class_short'],
+                            'total_seats' => intval($coach['total_seats']),
+                            'position' => intval($coach['position'] ?? 0),
+                            'front_facing_seats' => $coach['front_facing_seats'] ?? array(),
+                            'back_facing_seats' => $coach['back_facing_seats'] ?? array(),
+                        );
                     }
                 }
             }
         }
 
-        return rest_ensure_response([
-            'coaches' => $all_coaches,
-            'train_id' => $train_id,
-            'train_name' => get_the_title($train_id),
-            'train_number' => get_field('train_number', $train_id) ?: strval($train_id),
-            'count' => count($all_coaches),
-        ]);
+        return array(
+            'coaches' => $coaches,
+            'train_id' => intval($train_id),
+            'train_name' => $train->post_title,
+            'train_number' => get_field('train_number', $train_id),
+            'count' => count($coaches)
+        );
     }
 
     /**
