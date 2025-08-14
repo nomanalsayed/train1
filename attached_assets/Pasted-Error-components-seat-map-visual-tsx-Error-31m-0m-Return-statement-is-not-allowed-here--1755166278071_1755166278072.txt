@@ -1,0 +1,87 @@
+Error: ./components/seat-map-visual.tsx
+Error:   [31m×[0m Return statement is not allowed here
+     ╭─[[36;1;4m/home/runner/workspace/components/seat-map-visual.tsx[0m:158:1]
+ [2m155[0m │         )
+ [2m156[0m │       }
+ [2m157[0m │     
+ [2m158[0m │ [35;1m╭[0m[35;1m─[0m[35;1m▶[0m   return (
+ [2m159[0m │ [35;1m│[0m       <div className="min-h-screen bg-gray-50">
+ [2m160[0m │ [35;1m│[0m         {/* Header */}
+ [2m161[0m │ [35;1m│[0m         <div className="bg-white border-b p-4">
+ [2m162[0m │ [35;1m│[0m           <div className="flex items-center justify-between max-w-md mx-auto">
+ [2m163[0m │ [35;1m│[0m             <button className="text-gray-600 hover:text-gray-800">
+ [2m164[0m │ [35;1m│[0m               <ArrowLeft className="w-6 h-6" />
+ [2m165[0m │ [35;1m│[0m             </button>
+ [2m166[0m │ [35;1m│[0m             <div className="text-center">
+ [2m167[0m │ [35;1m│[0m               <h1 className="font-semibold text-gray-800">
+ [2m168[0m │ [35;1m│[0m                 {trainName} ({coach.coach_code})
+ [2m169[0m │ [35;1m│[0m               </h1>
+ [2m170[0m │ [35;1m│[0m             </div>
+ [2m171[0m │ [35;1m│[0m             <button className="text-blue-600 hover:text-blue-800 text-sm">
+ [2m172[0m │ [35;1m│[0m               Cancel
+ [2m173[0m │ [35;1m│[0m             </button>
+ [2m174[0m │ [35;1m│[0m           </div>
+ [2m175[0m │ [35;1m│[0m         </div>
+ [2m176[0m │ [35;1m│[0m   
+ [2m177[0m │ [35;1m│[0m         {/* Train info */}
+ [2m178[0m │ [35;1m│[0m         <div className="max-w-md mx-auto p-4">
+ [2m179[0m │ [35;1m│[0m           <div className="bg-white rounded-lg p-4 mb-4">
+ [2m180[0m │ [35;1m│[0m             <h2 className="text-orange-600 font-semibold mb-2">
+ [2m181[0m │ [35;1m│[0m               {trainName} ({coach.coach_code})
+ [2m182[0m │ [35;1m│[0m             </h2>
+ [2m183[0m │ [35;1m│[0m             
+ [2m184[0m │ [35;1m│[0m             <div className="flex items-center justify-between mb-2">
+ [2m185[0m │ [35;1m│[0m               <span className="text-green-600 font-medium">{route.from}</span>
+ [2m186[0m │ [35;1m│[0m               <ArrowRight className="w-4 h-4 text-gray-400" />
+ [2m187[0m │ [35;1m│[0m               <span className="text-green-600 font-medium">{route.to}</span>
+ [2m188[0m │ [35;1m│[0m             </div>
+ [2m189[0m │ [35;1m│[0m             
+ [2m190[0m │ [35;1m│[0m             <div className="text-sm text-gray-600">
+ [2m191[0m │ [35;1m│[0m               <span className="font-medium">Class:</span> {coach.class_name}
+ [2m192[0m │ [35;1m│[0m             </div>
+ [2m193[0m │ [35;1m│[0m           </div>
+ [2m194[0m │ [35;1m│[0m   
+ [2m195[0m │ [35;1m│[0m           {/* Seat map */}
+ [2m196[0m │ [35;1m│[0m           <div className="bg-white rounded-lg p-4">
+ [2m197[0m │ [35;1m│[0m             <div className="flex items-center justify-between mb-4">
+ [2m198[0m │ [35;1m│[0m               <h3 className="font-medium text-gray-800">Seats</h3>
+ [2m199[0m │ [35;1m│[0m               <span className="text-sm text-gray-500">
+ [2m200[0m │ [35;1m│[0m                 {coach.total_seats} seats total
+ [2m201[0m │ [35;1m│[0m               </span>
+ [2m202[0m │ [35;1m│[0m             </div>
+ [2m203[0m │ [35;1m│[0m             
+ [2m204[0m │ [35;1m│[0m             {renderSeatLayout()}
+ [2m205[0m │ [35;1m│[0m           </div>
+ [2m206[0m │ [35;1m│[0m         </div>
+ [2m207[0m │ [35;1m│[0m       </div>
+ [2m208[0m │ [35;1m╰[0m[35;1m─[0m[35;1m▶[0m   )
+ [2m209[0m │     }
+     ╰────
+  [31m×[0m Expression expected
+     ╭─[[36;1;4m/home/runner/workspace/components/seat-map-visual.tsx[0m:209:1]
+ [2m206[0m │       </div>
+ [2m207[0m │     </div>
+ [2m208[0m │   )
+ [2m209[0m │ }
+     · [35;1m─[0m
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/seat-map-visual.tsx
+./app/trains/[trainId]/seats/page.tsx
+    at BuildError (webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/client/components/react-dev-overlay/ui/container/build-error.js:43:41)
+    at react-stack-bottom-frame (webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:23950:20)
+    at renderWithHooksAgain (webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:5179:20)
+    at renderWithHooks (webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:5091:22)
+    at updateFunctionComponent (webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:8328:19)
+    at beginWork (webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:9945:18)
+    at runWithFiberInDEV (webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:1511:30)
+    at performUnitOfWork (webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15120:22)
+    at workLoopSync (webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:14944:41)
+    at renderRootSync (webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:14924:11)
+    at performWorkOnRoot (webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:14411:13)
+    at performWorkOnRootViaSchedulerTask (webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:16275:7)
+    at MessagePort.performWorkUntilDeadline (webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js:45:48)
