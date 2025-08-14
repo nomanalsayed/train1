@@ -1,4 +1,4 @@
-modules = ["php-8.2", "nodejs-20", "web"]
+modules = ["nodejs-20", "php-8.2", "web"]
 run = "npm run dev"
 
 [nix]
