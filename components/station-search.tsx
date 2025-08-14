@@ -15,10 +15,11 @@ export function StationSearch({ onSelect, onBack }: StationSearchProps) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let isMounted = true
     const fetchStations = async () => {
       try {
         const response = await fetch("/api/stations")
-        if (response.ok) {
+        if (response.ok && isMounted) {
           const data = await response.json()
           setStations(
             data.stations
@@ -28,25 +29,30 @@ export function StationSearch({ onSelect, onBack }: StationSearchProps) {
         }
       } catch (error) {
         console.error("Failed to fetch stations:", error)
-        // Fallback to default stations if API fails
-        setStations([
-          "Dhaka",
-          "Dhaka Cantonment",
-          "Panchagarh",
-          "Chittagong",
-          "Sylhet",
-          "Rangpur",
-          "Rajshahi",
-          "Khulna",
-          "Barisal",
-          "Mymensingh",
-        ])
+        if (isMounted) {
+          // Fallback to default stations if API fails
+          setStations([
+            "Dhaka",
+            "Dhaka Cantonment",
+            "Panchagarh",
+            "Chittagong",
+            "Sylhet",
+            "Rangpur",
+            "Rajshahi",
+            "Khulna",
+            "Barisal",
+            "Mymensingh",
+          ])
+        }
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
     fetchStations()
+    return () => { isMounted = false }
   }, [])
 
   const filteredStations = stations.filter(
@@ -54,9 +60,9 @@ export function StationSearch({ onSelect, onBack }: StationSearchProps) {
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="px-4 py-4">
+      <div className="px-4 py-4 bg-white border-b border-gray-200">
         <div className="flex items-center space-x-4">
           <Button variant="ghost" size="sm" onClick={onBack} className="p-2">
             <ArrowLeft className="w-5 h-5" />
@@ -73,7 +79,7 @@ export function StationSearch({ onSelect, onBack }: StationSearchProps) {
             placeholder="Search station..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full p-4 pr-12 rounded-xl bg-white focus:ring-2 focus:ring-green-200 outline-none transition-all"
+            className="w-full p-4 pr-12 rounded-md bg-white border border-gray-200 focus:border-emerald-500 focus:outline-none transition-colors"
           />
           {query && (
             <button
@@ -86,7 +92,7 @@ export function StationSearch({ onSelect, onBack }: StationSearchProps) {
         </div>
 
         {/* Station List */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white rounded-md border border-gray-200 overflow-hidden">
           {loading ? (
             <div className="p-4 text-center text-gray-500">Loading stations...</div>
           ) : filteredStations.length > 0 ? (
@@ -94,11 +100,11 @@ export function StationSearch({ onSelect, onBack }: StationSearchProps) {
               <button
                 key={station}
                 onClick={() => onSelect(station)}
-                className={`w-full p-4 text-left hover:bg-green-50 transition-colors flex items-center space-x-3 ${
-                  index !== filteredStations.length - 1 ? "" : ""
+                className={`w-full p-4 text-left hover:bg-emerald-50 transition-colors flex items-center space-x-3 ${
+                  index !== filteredStations.length - 1 ? "border-b border-gray-100" : ""
                 }`}
               >
-                <MapPin className="w-4 h-4 text-green-600" />
+                <MapPin className="w-4 h-4 text-emerald-600" />
                 <span className="font-medium text-gray-900">{station}</span>
               </button>
             ))

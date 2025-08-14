@@ -155,7 +155,7 @@ export function TrainDirectionSearch() {
               setResults([])
               setError("")
             }}
-            className="text-emerald-700 hover:bg-emerald-50 font-medium"
+            className="text-emerald-700 hover:bg-emerald-50 font-medium rounded-md"
           >
             New Search
           </Button>
@@ -165,7 +165,7 @@ export function TrainDirectionSearch() {
         <div className="space-y-3">
           {results.map((train, index) => (
             <div key={train.id}>
-              <div className="bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-200 active:scale-[0.98]">
+              <div className="bg-white rounded-md p-5 border border-gray-200 hover:border-emerald-300 transition-colors">
                 {/* Train header */}
                 <div className="flex items-start justify-between mb-4">
                   <div>
@@ -218,7 +218,7 @@ export function TrainDirectionSearch() {
 
                     window.location.href = `/trains/${trainIdentifier}/seats?${params.toString()}`
                   }}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold shadow-sm transition-all duration-200 active:scale-[0.98]"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-md font-semibold transition-colors"
                 >
                   <Train className="w-4 h-4 mr-2" />
                   View Seat Map
@@ -233,43 +233,47 @@ export function TrainDirectionSearch() {
 
   // Main search form
   return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-      {/* Search type tabs */}
-      <div className="p-1 bg-gray-50">
-        <div className="flex bg-gray-100 rounded-xl p-1">
-          <button
-            onClick={() => {
-              setSearchType("route")
-              setError("")
-            }}
-            className={`flex-1 py-3 px-4 text-sm font-bold rounded-lg transition-all duration-200 ${
-              searchType === "route"
-                ? "bg-emerald-600 text-white shadow-sm"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-            }`}
-          >
-            Search by Route
-          </button>
-          <button
-            onClick={() => {
-              setSearchType("train")
-              setError("")
-            }}
-            className={`flex-1 py-3 px-4 text-sm font-bold rounded-lg transition-all duration-200 ${
-              searchType === "train"
-                ? "bg-emerald-600 text-white shadow-sm"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-            }`}
-          >
-            Search by Train
-          </button>
-        </div>
+    <div className="bg-white rounded-md border border-gray-200 p-6">
+      {/* Search Type Toggle */}
+      <div className="flex bg-gray-100 rounded-md p-1 mb-6">
+        <button
+          onClick={() => {
+            setSearchType("route")
+            setError("")
+          }}
+          className={`flex-1 py-3 px-4 rounded-sm text-sm font-medium transition-all duration-200 ${
+            searchType === "route"
+              ? "bg-white text-emerald-700"
+              : "text-gray-600 hover:text-emerald-600"
+          }`}
+        >
+          <div className="flex items-center justify-center space-x-2">
+            <MapPin className="w-4 h-4" />
+            <span>By Route</span>
+          </div>
+        </button>
+        <button
+          onClick={() => {
+            setSearchType("train")
+            setError("")
+          }}
+          className={`flex-1 py-3 px-4 rounded-sm text-sm font-medium transition-all duration-200 ${
+            searchType === "train"
+              ? "bg-white text-emerald-700"
+              : "text-gray-600 hover:text-emerald-600"
+          }`}
+        >
+          <div className="flex items-center justify-center space-x-2">
+            <Train className="w-4 h-4" />
+            <span>By Train</span>
+          </div>
+        </button>
       </div>
 
       <div className="p-6 space-y-5">
         {/* Error message */}
         {error && (
-          <div className="bg-red-50 rounded-xl p-4">
+          <div className="bg-red-50 rounded-md p-4">
             <p className="text-red-700 text-sm font-medium">{error}</p>
           </div>
         )}
@@ -281,7 +285,7 @@ export function TrainDirectionSearch() {
               <label className="block text-sm font-semibold text-gray-700 mb-2">From Station</label>
               <button
                 onClick={() => setShowStationSearch("from")}
-                className="w-full p-4 text-left rounded-xl bg-gray-50 hover:bg-gray-100 transition-all duration-200 active:scale-[0.99] group"
+                className="w-full p-4 text-left rounded-md bg-gray-50 border border-gray-200 hover:bg-gray-100 focus:border-emerald-500 focus:outline-none transition-colors group"
               >
                 <div className="flex items-center justify-between">
                   <span className={`font-medium ${fromStation ? "text-gray-900" : "text-gray-500"}`}>
@@ -308,7 +312,7 @@ export function TrainDirectionSearch() {
               <label className="block text-sm font-semibold text-gray-700 mb-2">To Station</label>
               <button
                 onClick={() => setShowStationSearch("to")}
-                className="w-full p-4 text-left rounded-xl bg-gray-50 hover:bg-gray-100 transition-all duration-200 active:scale-[0.99] group"
+                className="w-full p-4 text-left rounded-md bg-gray-50 border border-gray-200 hover:bg-gray-100 focus:border-emerald-500 focus:outline-none transition-colors group"
               >
                 <div className="flex items-center justify-between">
                   <span className={`font-medium ${toStation ? "text-gray-900" : "text-gray-500"}`}>
@@ -323,7 +327,7 @@ export function TrainDirectionSearch() {
               <label className="block text-sm font-semibold text-gray-700 mb-2">Coach (Optional)</label>
               <button
                 onClick={() => setShowCoachSelection(true)}
-                className="w-full p-4 text-left rounded-xl bg-gray-50 hover:bg-gray-100 transition-all duration-200 active:scale-[0.99] group"
+                className="w-full p-4 text-left rounded-md bg-gray-50 border border-gray-200 hover:bg-gray-100 focus:border-emerald-500 focus:outline-none transition-colors group"
               >
                 <div className="flex items-center justify-between">
                   <span className={`font-medium ${selectedCoach ? "text-gray-900" : "text-gray-500"}`}>
@@ -337,7 +341,7 @@ export function TrainDirectionSearch() {
         ) : (
           <>
             {/* Train Name or Number */}
-            <div>
+            <div className="relative">
               <label className="block text-sm font-semibold text-gray-700 mb-2">Train Name or Number</label>
               <input
                 type="text"
@@ -347,15 +351,16 @@ export function TrainDirectionSearch() {
                   setTrainQuery(e.target.value)
                   setError("")
                 }}
-                className="w-full p-4 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-200 outline-none transition-all duration-200 font-medium"
+                className="w-full p-4 pl-12 rounded-md bg-gray-50 border border-gray-200 focus:border-emerald-500 focus:outline-none transition-colors"
               />
+              <Train className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             </div>
 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Coach (Optional)</label>
               <button
                 onClick={() => setShowCoachSelection(true)}
-                className="w-full p-4 text-left rounded-xl bg-gray-50 hover:bg-gray-100 transition-all duration-200 active:scale-[0.99] group"
+                className="w-full p-4 text-left rounded-md bg-gray-50 border border-gray-200 hover:bg-gray-100 focus:border-emerald-500 focus:outline-none transition-colors group"
               >
                 <div className="flex items-center justify-between">
                   <span className={`font-medium ${selectedCoach ? "text-gray-900" : "text-gray-500"}`}>
@@ -372,10 +377,19 @@ export function TrainDirectionSearch() {
         <Button
           onClick={handleSearch}
           disabled={loading || !canSearch}
-          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl font-bold text-base shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 active:scale-[0.98]"
+          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-4 px-6 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          <Search className="w-5 h-5 mr-2" />
-          {loading ? "Searching..." : "Find Seat Directions"}
+          {loading ? (
+            <div className="flex items-center justify-center space-x-2">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span>Searching...</span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center space-x-2">
+              <Search className="w-4 h-4" />
+              <span>Find Seat Directions</span>
+            </div>
+          )}
         </Button>
       </div>
     </div>
