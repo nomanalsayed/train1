@@ -58,6 +58,13 @@ class BD_Railway_Train_Endpoints {
             'callback' => [$this, 'get_train_coach_by_code'],
             'permission_callback' => '__return_true',
         ]);
+
+        // Get train seats (alias for coaches with seat data)
+        register_rest_route($this->parent::API_NAMESPACE, '/trains/(?P<train_id>\d+)/seats', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_train_seats'],
+            'permission_callback' => '__return_true',
+        ]);
     }
 
     /**
@@ -268,27 +275,36 @@ class BD_Railway_Train_Endpoints {
         $train_id = $request['train_id'];
 
         $train = get_post($train_id);
-        if (!$train || $train->post_type !== 'bd_train') {
+        if (!$train || $train->post_type !== $this->parent::TRAIN) {
             return new WP_Error('train_not_found', 'Train not found', array('status' => 404));
         }
 
-        // Get train classes and their coaches
-        $train_classes = get_field('train_classes', $train_id);
+        // Get train classes and extract coaches
+        $train_classes = get_field('train_classes', $train_id) ?: [];
         $coaches = array();
+        $position = 1;
 
-        if ($train_classes) {
-            foreach ($train_classes as $class) {
-                if (isset($class['coaches'])) {
-                    foreach ($class['coaches'] as $coach) {
+        foreach ($train_classes as $class_data) {
+            $class_id = intval($class_data['class_ref']);
+            $class_name = $class_id ? get_the_title($class_id) : '';
+            $class_short = $class_id ? get_field('short_code', $class_id) : '';
+
+            if (!empty($class_data['coaches']) && is_array($class_data['coaches'])) {
+                foreach ($class_data['coaches'] as $coach_data) {
+                    $coach_id = intval($coach_data['coach_ref']);
+                    if ($coach_id) {
+                        $seat_config = $this->parent->calculate_seat_directions($coach_id);
                         $coaches[] = array(
-                            'coach_id' => $coach['coach_id'],
-                            'coach_code' => $coach['coach_code'],
-                            'type' => $class['class_short'],
-                            'total_seats' => intval($coach['total_seats']),
-                            'position' => intval($coach['position'] ?? 0),
-                            'front_facing_seats' => $coach['front_facing_seats'] ?? array(),
-                            'back_facing_seats' => $coach['back_facing_seats'] ?? array(),
+                            'coach_id' => $coach_id,
+                            'coach_code' => get_field('coach_code', $coach_id),
+                            'type' => $class_short,
+                            'class_name' => $class_name,
+                            'total_seats' => $seat_config['total_seats'],
+                            'position' => $position,
+                            'front_facing_seats' => $seat_config['front_facing_seats'],
+                            'back_facing_seats' => $seat_config['back_facing_seats'],
                         );
+                        $position++;
                     }
                 }
             }
@@ -353,6 +369,13 @@ class BD_Railway_Train_Endpoints {
         }
 
         return new WP_Error('coach_not_found', 'Coach not found in this train', ['status' => 404]);
+    }
+
+    /**
+     * Get train seats (same as coaches but with different endpoint name)
+     */
+    public function get_train_seats($request) {
+        return $this->get_train_coaches($request);
     }
 
     /**

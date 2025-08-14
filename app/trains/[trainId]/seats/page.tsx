@@ -44,22 +44,33 @@ export default function SeatMapPage({ params, searchParams }: PageProps) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  // Resolve params and searchParams to ensure they are always defined
+  const resolvedParams = {
+    trainId: params?.trainId || "undefined",
+  };
+  const resolvedSearchParams = {
+    from: searchParams?.from || undefined,
+    to: searchParams?.to || undefined,
+    trainName: searchParams?.trainName || undefined,
+    coach: searchParams?.coach || undefined,
+  };
+
   useEffect(() => {
     async function fetchTrainData() {
       try {
         setLoading(true);
         setError(null);
 
-        if (!params.trainId || params.trainId === "undefined") {
+        if (!resolvedParams.trainId || resolvedParams.trainId === "undefined") {
           throw new Error("Train ID is missing or invalid");
         }
 
         const url = new URL(
-          `/api/trains/${params.trainId}/detail`,
+          `/api/trains/${resolvedParams.trainId}/detail`,
           window.location.origin,
         );
-        if (searchParams.from) url.searchParams.set("from", searchParams.from);
-        if (searchParams.to) url.searchParams.set("to", searchParams.to);
+        if (resolvedSearchParams.from) url.searchParams.set("from", resolvedSearchParams.from);
+        if (resolvedSearchParams.to) url.searchParams.set("to", resolvedSearchParams.to);
 
         const response = await fetch(url.toString());
 
@@ -79,7 +90,7 @@ export default function SeatMapPage({ params, searchParams }: PageProps) {
       }
     }
 
-    if (params.trainId && params.trainId !== "undefined") {
+    if (resolvedParams.trainId && resolvedParams.trainId !== "undefined") {
       fetchTrainData();
     } else {
       setLoading(false);
@@ -87,7 +98,7 @@ export default function SeatMapPage({ params, searchParams }: PageProps) {
         "Train ID is missing. Please select a train from the search page.",
       );
     }
-  }, [params.trainId, searchParams.from, searchParams.to]);
+  }, [resolvedParams.trainId, resolvedSearchParams.from, resolvedSearchParams.to]);
 
   if (loading) {
     return (
@@ -132,12 +143,12 @@ export default function SeatMapPage({ params, searchParams }: PageProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
       <SeatDirectionViewer
-        trainId={params.trainId}
-        trainName={searchParams.trainName || trainData.name}
-        trainNumber={params.trainId}
-        from={searchParams.from || trainData.fromStation?.title}
-        to={searchParams.to || trainData.toStation?.title}
-        filterCoach={searchParams.coach}
+        trainId={resolvedParams.trainId}
+        trainName={resolvedSearchParams.trainName || trainData?.name || "Unknown Train"}
+        trainNumber={resolvedParams.trainId}
+        from={resolvedSearchParams.from || "Unknown"}
+        to={resolvedSearchParams.to || "Unknown"}
+        filterCoach={resolvedSearchParams.coach}
         trainData={trainData}
       />
     </div>
