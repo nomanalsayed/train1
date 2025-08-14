@@ -233,7 +233,7 @@ export function TrainDirectionSearch() {
 
   // Main search form
   return (
-    <div className="bg-white rounded-md border border-gray-200 p-6">
+    <div className="bg-white rounded border border-gray-200 p-6">
       {/* Search Type Toggle */}
       <div className="flex bg-gray-100 rounded-md p-1 mb-6">
         <button

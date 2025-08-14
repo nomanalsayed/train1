@@ -99,7 +99,7 @@ export function CoachSelection({ fromStation, toStation, onSelect, onBack }: Pro
               <button
                 key={coach}
                 onClick={() => onSelect(coach)}
-                className="bg-white rounded-xl p-4 text-center hover:bg-emerald-50 transition-all duration-200 active:scale-95 shadow-sm"
+                className="bg-white rounded p-4 text-center hover:bg-emerald-50 transition-all duration-200 active:scale-95 border border-gray-200"
               >
                 <span className="font-bold text-gray-900 text-lg">{coach}</span>
               </button>

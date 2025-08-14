@@ -24,7 +24,7 @@ export function TrainSearch() {
 
     setLoading(true)
     setError('')
-    
+
     try {
       const trains = await searchTrains(query)
       setResults(trains)
@@ -63,8 +63,8 @@ export function TrainSearch() {
             className="pl-10 h-11"
           />
         </div>
-        <Button 
-          onClick={handleSearch} 
+        <Button
+          onClick={handleSearch}
           disabled={loading}
           className="h-11 px-6"
         >
@@ -96,12 +96,12 @@ export function TrainSearch() {
             <Train className="h-5 w-5" />
             Search Results ({results.length})
           </h3>
-          
+
           <div className="grid gap-4">
             {results.map((train) => (
-              <Card 
-                key={train.id} 
-                className="hover:shadow-lg transition-all duration-200 cursor-pointer border-0 bg-card/50 backdrop-blur"
+              <Card
+                key={train.id}
+                className="transition-all duration-200 cursor-pointer border-0 bg-card/50"
                 onClick={() => handleTrainSelect(train.id)}
               >
                 <CardContent className="p-6">
@@ -116,7 +116,7 @@ export function TrainSearch() {
                           <p className="text-sm text-muted-foreground">Train #{train.number}</p>
                         </div>
                       </div>
-                      
+
                       {train.route && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground ml-11">
                           <MapPin className="h-4 w-4" />
@@ -125,7 +125,7 @@ export function TrainSearch() {
                           <span>{train.route.to}</span>
                         </div>
                       )}
-                      
+
                       {train.departure_time && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground ml-11">
                           <Clock className="h-4 w-4" />
@@ -133,7 +133,7 @@ export function TrainSearch() {
                         </div>
                       )}
                     </div>
-                    
+
                     <Button variant="outline" size="sm">
                       View Seats
                       <ArrowRight className="ml-2 h-4 w-4" />

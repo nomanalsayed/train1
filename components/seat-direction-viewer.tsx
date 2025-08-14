@@ -48,21 +48,21 @@ export function SeatDirectionViewer({
       try {
         setLoading(true)
         setError(null)
-        
+
         console.log('Fetching coaches from API...')
-        
+
         // Try to get coaches from the train coaches API endpoint
         const response = await fetch(`/api/trains/${trainId}/coaches`)
-        
+
         console.log('Coaches API response status:', response.status)
-        
+
         if (!response.ok) {
           throw new Error(`Failed to fetch coaches: ${response.status}`)
         }
-        
+
         const data = await response.json()
         console.log('Coaches API data:', data)
-        
+
         const coachesData = data.coaches || []
         setCoaches(coachesData)
       } catch (err) {
@@ -84,7 +84,7 @@ export function SeatDirectionViewer({
   const getSeatDirection = (coach: Coach) => {
     const frontCount = coach.frontFacingCount || coach.frontFacingSeats?.length || 0
     const backCount = coach.backFacingCount || coach.backFacingSeats?.length || 0
-    
+
     if (frontCount > 0 && backCount === 0) return 'forward'
     if (backCount > 0 && frontCount === 0) return 'backward'
     if (frontCount > 0 && backCount > 0) return 'mixed'
@@ -213,7 +213,7 @@ export function SeatDirectionViewer({
               Home
             </Button>
           </div>
-          
+
           {filterCoach && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-blue-800 font-medium">
@@ -258,7 +258,7 @@ export function SeatDirectionViewer({
             const direction = getSeatDirection(coach)
             const frontCount = coach.frontFacingCount || coach.frontFacingSeats?.length || 0
             const backCount = coach.backFacingCount || coach.backFacingSeats?.length || 0
-            
+
             return (
               <Card key={coach.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
@@ -280,7 +280,7 @@ export function SeatDirectionViewer({
                     </Badge>
                   </div>
                 </CardHeader>
-                
+
                 <CardContent>
                   <div className="space-y-4">
                     {coach.totalSeats > 0 && (
@@ -289,7 +289,7 @@ export function SeatDirectionViewer({
                         <span>Total Seats: {coach.totalSeats}</span>
                       </div>
                     )}
-                    
+
                     {direction === 'mixed' && (
                       <div className="p-4 bg-muted/50 rounded-lg">
                         <h4 className="font-medium mb-2">Seat Distribution:</h4>
@@ -305,14 +305,14 @@ export function SeatDirectionViewer({
                         </div>
                       </div>
                     )}
-                    
+
                     {direction === 'forward' && (
                       <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
                         <CheckCircle className="h-4 w-4" />
                         <span>All {frontCount} seats face forward - Great choice for comfortable travel!</span>
                       </div>
                     )}
-                    
+
                     {direction === 'backward' && (
                       <div className="flex items-center gap-2 text-sm text-red-700 dark:text-red-400">
                         <AlertCircle className="h-4 w-4" />
