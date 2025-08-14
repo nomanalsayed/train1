@@ -8,7 +8,9 @@ import { useRouter } from 'next/navigation'
 
 interface SeatMapProps {
   coach: {
+    coach_id?: number
     coach_code: string
+    coach_name?: string
     type: string
     class_name: string
     total_seats: number
@@ -43,19 +45,19 @@ export default function SeatMapVisual({ coach, trainName, route, allCoaches = []
     for (let i = 0; i < seats.length; i += 5) { // 5 seats per row (2 left, 3 right)
       const rowSeats = seats.slice(i, i + 5)
       rows.push(
-        <div key={i} className="flex justify-center items-center gap-2 mb-2">
+        <div key={`row-${i}`} className="flex justify-center items-center gap-2 mb-2">
           {/* Left side - 2 seats */}
           <div className="flex gap-1">
-            {rowSeats.slice(0, 2).map(seatNum => (
+            {rowSeats.slice(0, 2).map((seatNum, seatIdx) => (
               seatNum ? (
                 <div
-                  key={seatNum}
+                  key={`seat-${seatNum}`}
                   className={`w-10 h-10 ${bgColor} rounded-lg text-sm text-white flex items-center justify-center font-semibold shadow-sm border-2 border-white`}
                 >
                   {seatNum}
                 </div>
               ) : (
-                <div key={`empty-${i}-${0}`} className="w-10 h-10"></div>
+                <div key={`empty-left-${i}-${seatIdx}`} className="w-10 h-10"></div>
               )
             ))}
           </div>
@@ -67,16 +69,16 @@ export default function SeatMapVisual({ coach, trainName, route, allCoaches = []
           
           {/* Right side - 3 seats */}
           <div className="flex gap-1">
-            {rowSeats.slice(2, 5).map((seatNum, idx) => (
+            {rowSeats.slice(2, 5).map((seatNum, seatIdx) => (
               seatNum ? (
                 <div
-                  key={seatNum}
+                  key={`seat-${seatNum}`}
                   className={`w-10 h-10 ${bgColor} rounded-lg text-sm text-white flex items-center justify-center font-semibold shadow-sm border-2 border-white`}
                 >
                   {seatNum}
                 </div>
               ) : (
-                <div key={`empty-${i}-${idx + 2}`} className="w-10 h-10"></div>
+                <div key={`empty-right-${i}-${seatIdx}`} className="w-10 h-10"></div>
               )
             ))}
           </div>
@@ -188,9 +190,11 @@ export default function SeatMapVisual({ coach, trainName, route, allCoaches = []
 
     return (
       <div className="space-y-6">
-        {sections.map((section, index) => 
-          renderSeatGrid(section.seats, section.color, section.label)
-        )}
+        {sections.map((section, index) => (
+          <div key={`section-${section.label}-${index}`}>
+            {renderSeatGrid(section.seats, section.color, section.label)}
+          </div>
+        ))}
       </div>
     )
   }
@@ -222,7 +226,7 @@ export default function SeatMapVisual({ coach, trainName, route, allCoaches = []
             <h1 className="font-bold text-lg text-gray-800">
               {trainName}
             </h1>
-            <p className="text-sm text-gray-500">Coach {coach.coach_code}</p>
+            <p className="text-sm text-gray-500">{coach.coach_name || coach.coach_code}</p>
           </div>
           <button 
             onClick={handleDone}
@@ -241,7 +245,7 @@ export default function SeatMapVisual({ coach, trainName, route, allCoaches = []
               <h2 className="text-xl font-bold text-gray-800 mb-1">
                 {trainName}
               </h2>
-              <p className="text-emerald-600 font-medium">Coach {coach.coach_code}</p>
+              <p className="text-emerald-600 font-medium">{coach.coach_name || `Coach ${coach.coach_code}`}</p>
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-500">Total Seats</p>
@@ -283,7 +287,7 @@ export default function SeatMapVisual({ coach, trainName, route, allCoaches = []
                       : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-300 hover:bg-emerald-50'
                   }`}
                 >
-                  <div className="font-semibold">{coachOption.coach_code}</div>
+                  <div className="font-semibold">{coachOption.coach_name || coachOption.coach_code}</div>
                   <div className="text-xs text-gray-500 mt-1">{coachOption.total_seats} seats</div>
                 </button>
               ))}

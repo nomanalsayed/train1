@@ -107,4 +107,14 @@ export class ApiClient {
     const data = await response.json()
     return data.coaches || []
   }
+
+  static async getCoachDetails(coachId: string): Promise<any> {
+    const response = await fetch(`${BASE_URL}/api/coaches/${coachId}`)
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error || "Failed to get coach details")
+    }
+
+    return response.json()
+  }
 }

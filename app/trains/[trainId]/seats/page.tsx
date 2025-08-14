@@ -200,7 +200,9 @@ export default function SeatMapPage({
           }
 
           allCoaches.push({
+            coach_id: coach.id || coach.coach_id,
             coach_code: coach.coach_code || coach.code,
+            coach_name: coach.coach_name || coach.name || coach.title || coach.code,
             type: trainClass.class_short || trainClass.shortCode || 'UNKNOWN',
             class_name: trainClass.class_name || trainClass.name || 'Unknown Class',
             total_seats: coach.total_seats || coach.totalSeats || 50,
@@ -244,7 +246,9 @@ export default function SeatMapPage({
           }
 
           allCoaches.push({
+            coach_id: coach.id || coach.coach_id,
             coach_code: coach.coach_code || coach.code,
+            coach_name: coach.coach_name || coach.name || coach.title || coach.code,
             type: trainClass.class_short || trainClass.shortCode || 'UNKNOWN',
             class_name: trainClass.class_name || trainClass.name || 'Unknown Class',
             total_seats: coach.total_seats || coach.totalSeats || 50,
@@ -286,7 +290,9 @@ export default function SeatMapPage({
       }
 
       allCoaches.push({
+        coach_id: coach.id || coach.coach_id,
         coach_code: coach.coach_code || coach.code,
+        coach_name: coach.coach_name || coach.name || coach.title || coach.code,
         type: coach.type || 'UNKNOWN',
         class_name: coach.class_name || 'Unknown Class',
         total_seats: coach.total_seats || 50,
