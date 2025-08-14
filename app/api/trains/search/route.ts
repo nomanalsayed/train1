@@ -120,8 +120,19 @@ export async function GET(request: NextRequest) {
       trains = data
     }
 
+    // Process trains to ensure correct numbering based on search direction
+    const processedTrains = trains.map((train: any) => ({
+      ...train,
+      // Ensure we pass through the route-specific codes
+      code_from_to: train.code_from_to,
+      code_to_from: train.code_to_from,
+      // For route searches, determine if we need to swap the display
+      display_from: from || train.from_station,
+      display_to: to || train.to_station
+    }))
+
     return NextResponse.json({
-      trains: trains,
+      trains: processedTrains,
       total: data.total || trains.length,
       message: "Data from WordPress"
     })

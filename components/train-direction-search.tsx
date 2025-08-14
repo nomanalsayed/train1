@@ -12,6 +12,8 @@ interface TrainResult {
   number: string
   from_station: string
   to_station: string
+  code_from_to?: string
+  code_to_from?: string
 }
 
 /**
@@ -35,6 +37,23 @@ export function TrainDirectionSearch() {
   const [error, setError] = useState("")
   const [showStationSearch, setShowStationSearch] = useState<"from" | "to" | null>(null)
   const [showCoachSelection, setShowCoachSelection] = useState(false)
+
+  const getCorrectTrainNumber = (train: TrainResult) => {
+    if (searchType === "route" && fromStation && toStation) {
+      // Check if this is reverse direction (from Panchagarh to Dhaka, etc.)
+      const isReverseDirection = train.from_station?.toLowerCase() !== fromStation.toLowerCase()
+      
+      // If we have route-specific codes, use them
+      if (train.code_to_from && isReverseDirection) {
+        return train.code_to_from
+      } else if (train.code_from_to && !isReverseDirection) {
+        return train.code_from_to
+      }
+    }
+    
+    // Fallback to the number field
+    return train.number || train.id
+  }
 
   const handleSearch = useCallback(async () => {
     if (searchType === "route" && (!fromStation || !toStation)) {
@@ -171,7 +190,7 @@ export function TrainDirectionSearch() {
                   <div>
                     <h3 className="font-bold text-gray-900 text-lg">{train.name.toUpperCase()}</h3>
                     <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 mt-1">
-                      #{train.number}
+                      #{getCorrectTrainNumber(train)}
                     </span>
                   </div>
                 </div>
@@ -180,8 +199,10 @@ export function TrainDirectionSearch() {
                 <div className="flex items-center justify-between mb-5">
                   <div className="text-center flex-1">
                     <div className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">From</div>
-                    <div className="font-bold text-gray-900 text-sm">{train.from_station}</div>
-                  </div>
+                    <div className="font-bold text-gray-900 text-sm">
+                      {searchType === "route" ? fromStation : train.from_station}
+                    </div>
+                  </div>v>
 
                   <div className="flex-1 flex items-center justify-center px-4">
                     <div className="text-center">
@@ -194,7 +215,9 @@ export function TrainDirectionSearch() {
 
                   <div className="text-center flex-1">
                     <div className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">To</div>
-                    <div className="font-bold text-gray-900 text-sm">{train.to_station}</div>
+                    <div className="font-bold text-gray-900 text-sm">
+                      {searchType === "route" ? toStation : train.to_station}
+                    </div>
                   </div>
                 </div>
 
