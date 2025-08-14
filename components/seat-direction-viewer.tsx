@@ -55,15 +55,28 @@ export function SeatDirectionViewer({
 
         console.log('Fetching coaches from API...')
 
-        // Construct the route code from 'from' and 'to' if available
-        const routeCode = (from && to) ? `${from.toUpperCase()}→${to.toUpperCase()}` : null;
-
-        // Fetch coaches based on trainId and routeCode
-        const apiUrl = routeCode 
-          ? `/api/trains/${trainId}/route/${encodeURIComponent(routeCode)}/coaches`
-          : `/api/trains/${trainId}/coaches`;
-
-        const response = await fetch(apiUrl);
+        // First try to get train by route code if from/to are available
+        let response;
+        if (from && to) {
+          // Try to determine route code based on direction
+          const routeCode = `${from.toUpperCase()}_TO_${to.toUpperCase()}`;
+          
+          try {
+            response = await fetch(`/api/trains/route/${routeCode}?direction=forward`);
+            if (!response.ok) {
+              // Try reverse direction
+              const reverseRouteCode = `${to.toUpperCase()}_TO_${from.toUpperCase()}`;
+              response = await fetch(`/api/trains/route/${reverseRouteCode}?direction=reverse`);
+            }
+          } catch (error) {
+            console.log('Route code search failed, falling back to train ID search');
+          }
+        }
+        
+        if (!response || !response.ok) {
+          // Fall back to train ID based search
+          response = await fetch(`/api/trains/${trainId}/seats?from=${from}&to=${to}`);
+        }
 
         console.log('Coaches API response status:', response.status)
 

@@ -70,6 +70,16 @@ class BD_Railway_Train_Endpoints {
                 'coach' => ['default' => '', 'sanitize_callback' => 'sanitize_text_field'],
             ],
         ]);
+
+        // Search trains by route code
+        register_rest_route($this->parent::API_NAMESPACE, '/trains/route/(?P<route_code>[a-zA-Z0-9_-]+)', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_train_by_route_code'],
+            'permission_callback' => '__return_true',
+            'args' => [
+                'direction' => ['default' => 'forward', 'sanitize_callback' => 'sanitize_text_field'],
+            ],
+        ]);
     }
 
     /**
@@ -143,12 +153,32 @@ class BD_Railway_Train_Endpoints {
 
         // Search by route (from/to stations)
         if (!empty($from) && !empty($to)) {
-            // Find station IDs by name/code
+            // Try to find by route codes first
+            $route_code_forward = strtoupper($from) . '_TO_' . strtoupper($to);
+            $route_code_reverse = strtoupper($to) . '_TO_' . strtoupper($from);
+            
+            // Search by route codes
+            $meta_query = [
+                'relation' => 'OR',
+                [
+                    'key' => 'code_from_to',
+                    'value' => $route_code_forward,
+                    'compare' => 'LIKE',
+                ],
+                [
+                    'key' => 'code_to_from',
+                    'value' => $route_code_reverse,
+                    'compare' => 'LIKE',
+                ],
+            ];
+
+            // Also try by station names
             $from_station_id = $this->find_station_by_name_or_code($from);
             $to_station_id = $this->find_station_by_name_or_code($to);
 
             if ($from_station_id && $to_station_id) {
-                $meta_query = [
+                $meta_query['relation'] = 'OR';
+                $meta_query[] = [
                     'relation' => 'AND',
                     [
                         'key' => 'origin_station',
@@ -158,6 +188,19 @@ class BD_Railway_Train_Endpoints {
                     [
                         'key' => 'destination_station',
                         'value' => $to_station_id,
+                        'compare' => '=',
+                    ],
+                ];
+                $meta_query[] = [
+                    'relation' => 'AND',
+                    [
+                        'key' => 'origin_station',
+                        'value' => $to_station_id,
+                        'compare' => '=',
+                    ],
+                    [
+                        'key' => 'destination_station',
+                        'value' => $from_station_id,
                         'compare' => '=',
                     ],
                 ];
@@ -177,7 +220,13 @@ class BD_Railway_Train_Endpoints {
         $trains = [];
 
         foreach ($wp_query->posts as $train) {
-            $trains[] = $this->format_train_data($train);
+            $train_data = $this->format_train_data($train);
+            
+            // Add route code information
+            $train_data['code_from_to'] = get_field('code_from_to', $train->ID);
+            $train_data['code_to_from'] = get_field('code_to_from', $train->ID);
+            
+            $trains[] = $train_data;
         }
 
         return rest_ensure_response([
@@ -527,6 +576,70 @@ class BD_Railway_Train_Endpoints {
             'total_seats' => $total_seats,
             'seat_layout' => $layout
         );
+    }
+
+    /**
+     * Get train by route code
+     */
+    public function get_train_by_route_code($request) {
+        $route_code = trim($request['route_code']);
+        $direction = trim($request['direction']);
+
+        if (empty($route_code)) {
+            return new WP_Error('missing_route_code', 'Route code is required', ['status' => 400]);
+        }
+
+        // Search for trains by route code
+        $meta_key = ($direction === 'reverse') ? 'code_to_from' : 'code_from_to';
+        
+        $trains = get_posts([
+            'post_type' => $this->parent::TRAIN,
+            'meta_query' => [
+                [
+                    'key' => $meta_key,
+                    'value' => $route_code,
+                    'compare' => '=',
+                ],
+            ],
+            'posts_per_page' => 1,
+            'post_status' => 'publish',
+        ]);
+
+        if (empty($trains)) {
+            return new WP_Error('train_not_found', 'No train found for this route code', ['status' => 404]);
+        }
+
+        $train = $trains[0];
+        $train_data = $this->format_train_data($train, true);
+
+        // Add route-specific seat layouts
+        $is_reverse_direction = ($direction === 'reverse');
+        $enhanced_classes = [];
+
+        foreach ($train_data['train_classes'] as $class_data) {
+            $enhanced_coaches = [];
+            
+            foreach ($class_data['coaches'] as $coach_data) {
+                $coach_id = $coach_data['coach_id'];
+                $seat_config = $this->get_seat_layout_for_direction($coach_id, $is_reverse_direction);
+                
+                $enhanced_coaches[] = array_merge($coach_data, [
+                    'seat_layout' => $seat_config['seat_layout'],
+                    'direction' => $is_reverse_direction ? 'reverse' : 'forward',
+                    'route_code' => $route_code,
+                ]);
+            }
+            
+            $enhanced_classes[] = array_merge($class_data, [
+                'coaches' => $enhanced_coaches,
+            ]);
+        }
+
+        $train_data['train_classes'] = $enhanced_classes;
+        $train_data['direction'] = $is_reverse_direction ? 'reverse' : 'forward';
+        $train_data['route_code'] = $route_code;
+
+        return rest_ensure_response($train_data);
     }
 
     /**

@@ -9,10 +9,15 @@ export async function GET(request: NextRequest) {
     const from = searchParams.get("from")
     const to = searchParams.get("to")
     const query = searchParams.get("query")
+    const routeCode = searchParams.get("routeCode")
 
     let wpUrl: URL
 
-    if (from && to) {
+    if (routeCode) {
+      // Search by route code
+      wpUrl = new URL(`${WORDPRESS_API_URL}/trains/route/${routeCode}`)
+      console.log(`[Next.js API] Proxying route code search to: ${wpUrl.toString()}`)
+    } else if (from && to) {
       // Route-based search
       wpUrl = new URL(`${WORDPRESS_API_URL}/trains/search`)
       wpUrl.searchParams.set("from", from)
