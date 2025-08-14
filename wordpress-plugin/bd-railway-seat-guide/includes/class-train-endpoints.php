@@ -207,9 +207,25 @@ class BD_Railway_Train_Endpoints {
             }
         }
 
-        // Search by train name or number
+        // Search by train name, number, or route codes
         if (!empty($query)) {
-            $args['s'] = $query;
+            // Check if query looks like a route code (numeric)
+            if (is_numeric($query)) {
+                $meta_query['relation'] = 'OR';
+                $meta_query[] = [
+                    'key' => 'code_from_to',
+                    'value' => $query,
+                    'compare' => '=',
+                ];
+                $meta_query[] = [
+                    'key' => 'code_to_from', 
+                    'value' => $query,
+                    'compare' => '=',
+                ];
+            } else {
+                // Regular text search for train names
+                $args['s'] = $query;
+            }
         }
 
         if (!empty($meta_query)) {
