@@ -210,37 +210,43 @@ export default function SeatMapPage({
   // Extract coaches from different possible data structures
   const allCoaches: any[] = [];
 
-  // Check train_classes first (new structure)
-  if (trainData.train_classes && Array.isArray(trainData.train_classes)) {
-    trainData.train_classes.forEach((trainClass) => {
-      if (trainClass.coaches && Array.isArray(trainClass.coaches)) {
-        trainClass.coaches.forEach((coach: any) => {
-          allCoaches.push({
-            coach_code: coach.coach_code || coach.code,
-            type: trainClass.class_short || trainClass.shortCode || 'UNKNOWN',
-            class_name: trainClass.class_name || trainClass.name || 'Unknown Class',
-            total_seats: coach.total_seats || coach.totalSeats || 50,
-            seat_layout: coach.seat_layout || coach.seatLayout || [],
-            direction: coach.direction || 'forward',
-            route_code: coach.route_code || trainData.code_from_to,
-          });
-        });
-      }
-    });
-  }
-
-  // Check classes structure (alternative structure)
-  if (allCoaches.length === 0 && trainData.classes && Array.isArray(trainData.classes)) {
+  // Check classes structure (main structure from API)
+  if (trainData.classes && Array.isArray(trainData.classes)) {
     trainData.classes.forEach((trainClass) => {
       if (trainClass.coaches && Array.isArray(trainClass.coaches)) {
         trainClass.coaches.forEach((coach: any) => {
+          // Create seat layout from front and back facing seats
+          const seatLayout: any[] = [];
+          
+          // Add front-facing seats
+          if (coach.frontFacingSeats && Array.isArray(coach.frontFacingSeats)) {
+            coach.frontFacingSeats.forEach((seatNum: number) => {
+              seatLayout.push({
+                number: seatNum,
+                type: 'front_facing',
+                color: 'green'
+              });
+            });
+          }
+          
+          // Add back-facing seats
+          if (coach.backFacingSeats && Array.isArray(coach.backFacingSeats)) {
+            coach.backFacingSeats.forEach((seatNum: number) => {
+              seatLayout.push({
+                number: seatNum,
+                type: 'back_facing',
+                color: 'orange'
+              });
+            });
+          }
+
           allCoaches.push({
             coach_code: coach.coach_code || coach.code,
             type: trainClass.class_short || trainClass.shortCode || 'UNKNOWN',
             class_name: trainClass.class_name || trainClass.name || 'Unknown Class',
             total_seats: coach.total_seats || coach.totalSeats || 50,
-            seat_layout: coach.seat_layout || coach.seatLayout || [],
-            direction: coach.direction || 'forward',
+            seat_layout: seatLayout,
+            direction: coach.direction || (coach.directionFlipped ? 'reverse' : 'forward'),
             route_code: coach.route_code || trainData.code_from_to,
           });
         });
@@ -248,18 +254,47 @@ export default function SeatMapPage({
     });
   }
 
-  // Check direct coaches array (fallback)
-  if (allCoaches.length === 0 && trainData.coaches && Array.isArray(trainData.coaches)) {
-    trainData.coaches.forEach((coach: any) => {
-      allCoaches.push({
-        coach_code: coach.coach_code || coach.code,
-        type: coach.type || 'UNKNOWN',
-        class_name: coach.class_name || 'Unknown Class',
-        total_seats: coach.total_seats || coach.totalSeats || 50,
-        seat_layout: coach.seat_layout || coach.seatLayout || [],
-        direction: coach.direction || 'forward',
-        route_code: coach.route_code || trainData.code_from_to,
-      });
+  // Check train_classes (alternative structure)
+  if (allCoaches.length === 0 && trainData.train_classes && Array.isArray(trainData.train_classes)) {
+    trainData.train_classes.forEach((trainClass) => {
+      if (trainClass.coaches && Array.isArray(trainClass.coaches)) {
+        trainClass.coaches.forEach((coach: any) => {
+          // Create seat layout from front and back facing seats
+          const seatLayout: any[] = [];
+          
+          // Add front-facing seats
+          if (coach.frontFacingSeats && Array.isArray(coach.frontFacingSeats)) {
+            coach.frontFacingSeats.forEach((seatNum: number) => {
+              seatLayout.push({
+                number: seatNum,
+                type: 'front_facing',
+                color: 'green'
+              });
+            });
+          }
+          
+          // Add back-facing seats
+          if (coach.backFacingSeats && Array.isArray(coach.backFacingSeats)) {
+            coach.backFacingSeats.forEach((seatNum: number) => {
+              seatLayout.push({
+                number: seatNum,
+                type: 'back_facing',
+                color: 'orange'
+              });
+            });
+          }
+
+          allCoaches.push({
+            coach_code: coach.coach_code || coach.code,
+            type: trainClass.class_short || trainClass.shortCode || 'UNKNOWN',
+            class_name: trainClass.class_name || trainClass.name || 'Unknown Class',
+            total_seats: coach.total_seats || coach.totalSeats || 50,
+            seat_layout: seatLayout,
+            direction: coach.direction || 'forward',
+            route_code: coach.route_code || trainData.code_from_to,
+          });
+        });
+      }
     });
   }
 

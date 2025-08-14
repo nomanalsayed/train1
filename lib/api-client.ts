@@ -59,7 +59,7 @@ export class ApiClient {
     return data.trains || []
   }
 
-  static async getTrainDetail(trainId: string, from?: string, to?: string): Promise<TrainDetail> {
+  static async getTrainDetail(trainId: string, from?: string, to?: string): Promise<any> {
     const params = new URLSearchParams()
     if (from) params.append("from", from)
     if (to) params.append("to", to)
