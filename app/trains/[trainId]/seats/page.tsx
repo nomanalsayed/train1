@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Home, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { use } from "react";
 
 // Import the actual SeatMapVisual component
 import SeatMapVisual from "@/components/seat-map-visual";
@@ -114,7 +113,7 @@ export default function SeatMapPage({
     }
 
     fetchTrainData();
-  }, [resolvedParams, resolvedSearchParams]);
+  }, [resolvedParams?.trainId, resolvedSearchParams?.from, resolvedSearchParams?.to]);
 
   if (loading) {
     return (

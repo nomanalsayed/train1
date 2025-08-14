@@ -28,34 +28,44 @@ export default function SeatMapVisual({ coach, trainName, route }: SeatMapProps)
     if (!seats || seats.length === 0) return null
     
     const rows = []
-    for (let i = 0; i < seats.length; i += 10) { // 10 seats per row (5 left, 5 right)
-      const rowSeats = seats.slice(i, i + 10)
+    for (let i = 0; i < seats.length; i += 5) { // 5 seats per row (2 left, 3 right)
+      const rowSeats = seats.slice(i, i + 5)
       rows.push(
-        <div key={i} className="flex justify-center gap-1 mb-1">
-          {/* Left side - 5 seats */}
+        <div key={i} className="flex justify-center items-center gap-2 mb-2">
+          {/* Left side - 2 seats */}
           <div className="flex gap-1">
-            {rowSeats.slice(0, 5).map(seatNum => (
-              <div
-                key={seatNum}
-                className={`w-8 h-8 ${bgColor} rounded text-xs text-white flex items-center justify-center font-medium`}
-              >
-                {seatNum}
-              </div>
+            {rowSeats.slice(0, 2).map(seatNum => (
+              seatNum ? (
+                <div
+                  key={seatNum}
+                  className={`w-10 h-10 ${bgColor} rounded-lg text-sm text-white flex items-center justify-center font-semibold shadow-sm border-2 border-white`}
+                >
+                  {seatNum}
+                </div>
+              ) : (
+                <div key={`empty-${i}-${0}`} className="w-10 h-10"></div>
+              )
             ))}
           </div>
           
           {/* Aisle space */}
-          <div className="w-4"></div>
+          <div className="w-8 flex items-center justify-center">
+            <div className="w-px h-6 bg-gray-300"></div>
+          </div>
           
-          {/* Right side - 5 seats */}
+          {/* Right side - 3 seats */}
           <div className="flex gap-1">
-            {rowSeats.slice(5, 10).map(seatNum => (
-              <div
-                key={seatNum}
-                className={`w-8 h-8 ${bgColor} rounded text-xs text-white flex items-center justify-center font-medium`}
-              >
-                {seatNum}
-              </div>
+            {rowSeats.slice(2, 5).map((seatNum, idx) => (
+              seatNum ? (
+                <div
+                  key={seatNum}
+                  className={`w-10 h-10 ${bgColor} rounded-lg text-sm text-white flex items-center justify-center font-semibold shadow-sm border-2 border-white`}
+                >
+                  {seatNum}
+                </div>
+              ) : (
+                <div key={`empty-${i}-${idx + 2}`} className="w-10 h-10"></div>
+              )
             ))}
           </div>
         </div>
@@ -63,19 +73,16 @@ export default function SeatMapVisual({ coach, trainName, route }: SeatMapProps)
     }
 
     return (
-      <div className={`${bgColor === 'bg-orange-500' ? 'bg-orange-100' : 'bg-green-100'} p-4 rounded-lg relative`}>
+      <div className={`${bgColor === 'bg-emerald-500' ? 'bg-emerald-50' : 'bg-orange-50'} p-6 rounded-xl relative border-2 ${bgColor === 'bg-emerald-500' ? 'border-emerald-200' : 'border-orange-200'}`}>
         {/* Direction label */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div 
-            className="text-4xl font-bold text-black opacity-20 transform -rotate-90"
-            style={{ writingMode: 'vertical-lr' }}
-          >
-            {label}
-          </div>
+        <div className="absolute top-2 right-2">
+          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${bgColor === 'bg-emerald-500' ? 'bg-emerald-200 text-emerald-800' : 'bg-orange-200 text-orange-800'}`}>
+            {label} Facing
+          </span>
         </div>
         
         {/* Seats grid */}
-        <div className="relative z-10">
+        <div className="pt-8">
           {rows}
         </div>
       </div>
@@ -137,72 +144,97 @@ export default function SeatMapVisual({ coach, trainName, route }: SeatMapProps)
     backSeats.sort((a, b) => a - b)
 
     return (
-      <div className="space-y-4">
-        {/* Back-facing seats (orange/gray in original) */}
-        {backSeats.length > 0 && renderSeatGrid(backSeats, 'bg-orange-500', 'Back')}
+      <div className="space-y-6">
+        {/* Front-facing seats (emerald green) */}
+        {frontSeats.length > 0 && renderSeatGrid(frontSeats, 'bg-emerald-500', 'Forward')}
         
-        {/* Front-facing seats (green) */}
-        {frontSeats.length > 0 && renderSeatGrid(frontSeats, 'bg-green-500', 'Front')}
+        {/* Back-facing seats (orange) */}
+        {backSeats.length > 0 && renderSeatGrid(backSeats, 'bg-orange-500', 'Backward')}
       </div>
     )
   }
 
   const renderDefaultLayout = (frontSeats: number[], backSeats: number[]) => {
     return (
-      <div className="space-y-4">
-        {/* Back-facing seats */}
-        {backSeats.length > 0 && renderSeatGrid(backSeats, 'bg-orange-500', 'Back')}
-        
+      <div className="space-y-6">
         {/* Front-facing seats */}
-        {frontSeats.length > 0 && renderSeatGrid(frontSeats, 'bg-green-500', 'Front')}
+        {frontSeats.length > 0 && renderSeatGrid(frontSeats, 'bg-emerald-500', 'Forward')}
+        
+        {/* Back-facing seats */}
+        {backSeats.length > 0 && renderSeatGrid(backSeats, 'bg-orange-500', 'Backward')}
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
       {/* Header */}
-      <div className="bg-white border-b p-4">
-        <div className="flex items-center justify-between max-w-md mx-auto">
-          <button className="text-gray-600 hover:text-gray-800">
+      <div className="bg-white shadow-sm border-b p-4 sticky top-0 z-10">
+        <div className="flex items-center justify-between max-w-2xl mx-auto">
+          <button className="text-gray-600 hover:text-gray-800 p-2 rounded-lg hover:bg-gray-100 transition-colors">
             <ArrowLeft className="w-6 h-6" />
           </button>
           <div className="text-center">
-            <h1 className="font-semibold text-gray-800">
-              {trainName} ({coach.coach_code})
+            <h1 className="font-bold text-lg text-gray-800">
+              {trainName}
             </h1>
+            <p className="text-sm text-gray-500">Coach {coach.coach_code}</p>
           </div>
-          <button className="text-blue-600 hover:text-blue-800 text-sm">
-            Cancel
+          <button className="text-emerald-600 hover:text-emerald-700 text-sm font-medium px-3 py-1 rounded-lg hover:bg-emerald-50 transition-colors">
+            Done
           </button>
         </div>
       </div>
 
       {/* Train info */}
-      <div className="max-w-md mx-auto p-4">
-        <div className="bg-white rounded-lg p-4 mb-4">
-          <h2 className="text-orange-600 font-semibold mb-2">
-            {trainName} ({coach.coach_code})
-          </h2>
-          
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-green-600 font-medium">{route.from}</span>
-            <ArrowRight className="w-4 h-4 text-gray-400" />
-            <span className="text-green-600 font-medium">{route.to}</span>
+      <div className="max-w-2xl mx-auto p-6">
+        <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800 mb-1">
+                {trainName}
+              </h2>
+              <p className="text-emerald-600 font-medium">Coach {coach.coach_code}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-gray-500">Total Seats</p>
+              <p className="text-2xl font-bold text-gray-800">{coach.total_seats}</p>
+            </div>
           </div>
           
-          <div className="text-sm text-gray-600">
-            <span className="font-medium">Class:</span> {coach.class_name}
+          <div className="flex items-center justify-center space-x-4 bg-gradient-to-r from-emerald-100 to-blue-100 rounded-xl p-4">
+            <div className="text-center">
+              <p className="font-semibold text-emerald-700">{route.from}</p>
+              <p className="text-xs text-gray-500">From</p>
+            </div>
+            <ArrowRight className="w-6 h-6 text-gray-400" />
+            <div className="text-center">
+              <p className="font-semibold text-blue-700">{route.to}</p>
+              <p className="text-xs text-gray-500">To</p>
+            </div>
+          </div>
+          
+          <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+            <span className="text-sm text-gray-600">
+              <span className="font-medium">Class:</span> {coach.class_name}
+            </span>
           </div>
         </div>
 
         {/* Seat map */}
-        <div className="bg-white rounded-lg p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-gray-800">Seats</h3>
-            <span className="text-sm text-gray-500">
-              {coach.total_seats} seats total
-            </span>
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold text-gray-800">Seat Layout</h3>
+            <div className="flex items-center space-x-4 text-sm">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-emerald-500 rounded"></div>
+                <span className="text-gray-600">Forward</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-orange-500 rounded"></div>
+                <span className="text-gray-600">Backward</span>
+              </div>
+            </div>
           </div>
           
           {renderSeatLayout()}
