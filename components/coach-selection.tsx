@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -25,21 +26,46 @@ export function CoachSelection({ fromStation, toStation, onSelect, onBack }: Pro
         console.log("Coaches API data:", data)
 
         if (response.ok && data.coaches && data.coaches.length > 0) {
-          setCoaches(data.coaches.map((coach: any) => coach.code || coach.name))
+          // Extract coach codes/names from the response
+          const coachList = data.coaches.map((coach: any) => coach.code || coach.name || "Unknown")
+          setCoaches(coachList)
+          console.log("Successfully loaded coaches:", coachList)
         } else {
           console.error("Coaches API failed or returned no data:", data)
-          throw new Error(data.error || `API failed with status ${response.status}`)
+          // Fallback to default coaches if API fails
+          setCoaches([
+            "UMA",
+            "CHA", 
+            "SCHA",
+            "JHA",
+            "KHA",
+            "GHA",
+            "TA",
+            "THA",
+            "DA",
+            "DHA",
+            "NA",
+            "PA",
+            "PHA",
+            "BA",
+            "BHA",
+            "MA",
+            "YA",
+            "RA",
+            "LA",
+            "SHA",
+          ])
         }
       } catch (error) {
         console.error("Failed to fetch coaches:", error)
         // Fallback to default coaches if API fails
         setCoaches([
           "UMA",
-          "UMO",
+          "CHA",
+          "SCHA", 
+          "JHA",
           "KHA",
           "GHA",
-          "CHA",
-          "JHA",
           "TA",
           "THA",
           "DA",
@@ -52,7 +78,7 @@ export function CoachSelection({ fromStation, toStation, onSelect, onBack }: Pro
           "MA",
           "YA",
           "RA",
-          "LA",
+          "LA", 
           "SHA",
         ])
       } finally {
@@ -88,25 +114,37 @@ export function CoachSelection({ fromStation, toStation, onSelect, onBack }: Pro
         </div>
       </div>
 
-      {/* Coach grid */}
-      <div className="px-6 py-6">
-        <p className="text-sm text-gray-600 mb-4">Select a coach to view seat directions</p>
-        {loading ? (
-          <div className="text-center text-gray-500 py-8">Loading coaches...</div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
+      {/* Loading state */}
+      {loading && (
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+        </div>
+      )}
+
+      {/* Coach Grid */}
+      {!loading && (
+        <div className="px-6 py-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Available Coaches</h2>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
             {coaches.map((coach) => (
               <button
                 key={coach}
                 onClick={() => onSelect(coach)}
-                className="bg-white rounded p-4 text-center hover:bg-emerald-50 transition-all duration-200 active:scale-95 border border-gray-200"
+                className="bg-white border-2 border-gray-200 rounded-lg p-4 text-center hover:border-emerald-500 hover:bg-emerald-50 transition-colors"
               >
-                <span className="font-bold text-gray-900 text-lg">{coach}</span>
+                <div className="text-lg font-bold text-gray-900">{coach}</div>
+                <div className="text-xs text-gray-500 mt-1">Coach</div>
               </button>
             ))}
           </div>
-        )}
-      </div>
+          
+          {coaches.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No coaches available</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

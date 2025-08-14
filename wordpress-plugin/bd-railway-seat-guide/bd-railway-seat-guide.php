@@ -12,17 +12,38 @@ class BD_Railway_Headless_WithCoachClass {
   const STATION = 'station';
   const COACH   = 'coach';
   const TCLASS  = 'travel_class';
+  const API_NAMESPACE = 'rail/v1';
+
+  private $train_endpoints;
+  private $station_endpoints;
+  private $coach_endpoints;
+  private $search_endpoints;
 
   public function __construct() {
     add_action('init', [$this, 'register_cpts']);
     add_action('acf/include_fields', [$this, 'register_acf_groups']);
     add_action('rest_api_init', [$this, 'register_rest_routes']);
 
+    // Include endpoint classes
+    $this->include_endpoint_classes();
+
     // Save hooks
     add_action('acf/save_post', [$this, 'sync_routes_on_save'], 20);
     add_action('acf/save_post', [$this, 'sync_station_title_on_save'], 20);
     add_action('acf/save_post', [$this, 'sync_coach_title_on_save'], 20);
     add_action('acf/save_post', [$this, 'sync_tclass_short_normalize'], 20);
+  }
+
+  private function include_endpoint_classes() {
+    require_once plugin_dir_path(__FILE__) . 'includes/class-train-endpoints.php';
+    require_once plugin_dir_path(__FILE__) . 'includes/class-station-endpoints.php';
+    require_once plugin_dir_path(__FILE__) . 'includes/class-coach-endpoints.php';
+    require_once plugin_dir_path(__FILE__) . 'includes/class-search-endpoints.php';
+
+    $this->train_endpoints = new BD_Railway_Train_Endpoints($this);
+    $this->station_endpoints = new BD_Railway_Station_Endpoints($this);
+    $this->coach_endpoints = new BD_Railway_Coach_Endpoints($this);
+    $this->search_endpoints = new BD_Railway_Search_Endpoints($this);
   }
 
   /** CPTs */
@@ -187,300 +208,19 @@ class BD_Railway_Headless_WithCoachClass {
 
   /** REST */
   public function register_rest_routes() {
-    // Trains endpoint
-    register_rest_route('rail/v1', '/train/(?P<id>\d+)', [
-      'methods'=>'GET','callback'=>[$this,'get_train'],'permission_callback'=>'__return_true',
-    ]);
-    register_rest_route('rail/v1', '/trains', [
-      'methods'=>'GET','callback'=>[$this,'list_trains'],'permission_callback'=>'__return_true',
-      'args'=>['per_page'=>['default'=>50],'page'=>['default'=>1]],
-    ]);
-
-    // Travel Classes
-    register_rest_route('rail/v1', '/classes', [
-      'methods'=>'GET','callback'=>[$this,'list_classes'],'permission_callback'=>'__return_true',
-      'args'=>[
-        'per_page'=>['default'=>100],
-        'page'    =>['default'=>1],
-        'search'  =>['default'=>''],
-        'short'   =>['default'=>''], // short_code exact match
-      ],
-    ]);
-    register_rest_route('rail/v1', '/class/(?P<id>\d+)', [
-      'methods'=>'GET','callback'=>[$this,'get_class'],'permission_callback'=>'__return_true',
-    ]);
-
-    // Coaches
-    register_rest_route('rail/v1', '/coaches', [
-      'methods'=>'GET','callback'=>[$this,'list_coaches'],'permission_callback'=>'__return_true',
-      'args'=>[
-        'per_page'=>['default'=>100],
-        'page'    =>['default'=>1],
-        'search'  =>['default'=>''],
-        'code'    =>['default'=>''], // coach_code exact match
-      ],
-    ]);
-    register_rest_route('rail/v1', '/coach/(?P<id>\d+)', [
-      'methods'=>'GET','callback'=>[$this,'get_coach'],'permission_callback'=>'__return_true',
-    ]);
-
-    // Stations
-    register_rest_route('rail/v1', '/stations', [
-      'methods'=>'GET','callback'=>[$this,'list_stations'],'permission_callback'=>'__return_true',
-      'args'=>[
-        'per_page'=>['default'=>200],
-        'page'    =>['default'=>1],
-        'search'  =>['default'=>''], // search by title (code)
-        'code'    =>['default'=>''], // station_code exact match
-      ],
-    ]);
-    register_rest_route('rail/v1', '/station/(?P<id>\d+)', [
-      'methods'=>'GET','callback'=>[$this,'get_station'],'permission_callback'=>'__return_true',
-    ]);
-  }
-
-  /** ---------- Train endpoints ---------- */
-  public function get_train($request) {
-    $id = intval($request['id']);
-    $post = get_post($id);
-    if (!$post || $post->post_type !== self::TRAIN) {
-      return new WP_Error('not_found','Train not found',['status'=>404]);
+    // Register all endpoint routes through their respective classes
+    if ($this->train_endpoints) {
+      $this->train_endpoints->register_routes();
     }
-
-    $origin = intval(get_field('origin_station', $id));
-    $dest   = intval(get_field('destination_station', $id));
-    $routes = get_field('routes', $id) ?: [];
-
-    $payload = [
-      'id'                 => $id,
-      'train_name'         => get_the_title($id),
-      'from_station'       => $origin ? ['id'=>$origin,'title'=>get_the_title($origin),'code'=>get_field('station_code',$origin)] : null,
-      'to_station'         => $dest ? ['id'=>$dest,'title'=>get_the_title($dest),'code'=>get_field('station_code',$dest)] : null,
-      'code_from_to'       => (string) get_field('code_from_to', $id),
-      'code_to_from'       => (string) get_field('code_to_from', $id),
-      'route_from_to'      => $this->build_direction($routes, 'forward'),
-      'route_to_from'      => $this->build_direction($routes, 'reverse'),
-      'train_classes'      => $this->format_classes_csv(get_field('train_classes',$id)),
-      'train_classes_reverse' => $this->reverse_classes_csv(get_field('train_classes',$id)),
-    ];
-
-    return rest_ensure_response($payload);
-  }
-
-  public function list_trains($request) {
-    $per_page = max(1, intval($request['per_page']));
-    $page     = max(1, intval($request['page']));
-    $q = new WP_Query([
-      'post_type'=>self::TRAIN,'posts_per_page'=>$per_page,'paged'=>$page,
-      'orderby'=>'title','order'=>'ASC','no_found_rows'=>false,
-    ]);
-
-    $items = [];
-    foreach ($q->posts as $p) {
-      $origin = intval(get_field('origin_station', $p->ID));
-      $dest   = intval(get_field('destination_station', $p->ID));
-      $items[] = [
-        'id'=>$p->ID,
-        'title'=>get_the_title($p),
-        'train_name'=>get_the_title($p),
-        'from_station'=>$origin ? ['id'=>$origin,'title'=>get_the_title($origin),'code'=>get_field('station_code',$origin)] : null,
-        'to_station'=>$dest ? ['id'=>$dest,'title'=>get_the_title($dest),'code'=>get_field('station_code',$dest)] : null,
-        'code_from_to'=>(string) get_field('code_from_to',$p->ID),
-        'code_to_from'=>(string) get_field('code_to_from',$p->ID),
-      ];
+    if ($this->station_endpoints) {
+      $this->station_endpoints->register_routes();
     }
-
-    return rest_ensure_response([
-      'items'=>$items,'total'=>intval($q->found_posts),'pages'=>intval($q->max_num_pages),
-      'page'=>$page,'per_page'=>$per_page,
-    ]);
-  }
-
-  /** ---------- Travel Class endpoints ---------- */
-  public function list_classes($request) {
-    $per_page = max(1, intval($request['per_page']));
-    $page     = max(1, intval($request['page']));
-    $search   = is_string($request['search']) ? trim($request['search']) : '';
-    $short    = is_string($request['short'])  ? strtoupper(trim($request['short'])) : '';
-
-    $args = [
-      'post_type'      => self::TCLASS,
-      'posts_per_page' => $per_page,
-      'paged'          => $page,
-      'orderby'        => 'title',
-      'order'          => 'ASC',
-      's'              => $search,
-      'no_found_rows'  => false,
-    ];
-
-    if ($short !== '') {
-      $args['meta_query'] = [[
-        'key'     => 'short_code',
-        'value'   => $short,
-        'compare' => '=',
-      ]];
+    if ($this->coach_endpoints) {
+      $this->coach_endpoints->register_routes();
     }
-
-    $q = new WP_Query($args);
-
-    $items = [];
-    foreach ($q->posts as $p) {
-      $items[] = [
-        'id'          => $p->ID,
-        'class_name'  => get_the_title($p->ID),
-        'class_short' => (string) get_field('short_code', $p->ID),
-        'slug'        => $p->post_name,
-      ];
+    if ($this->search_endpoints) {
+      $this->search_endpoints->register_routes();
     }
-
-    return rest_ensure_response([
-      'items'    => $items,
-      'total'    => intval($q->found_posts),
-      'pages'    => intval($q->max_num_pages),
-      'page'     => $page,
-      'per_page' => $per_page,
-    ]);
-  }
-
-  public function get_class($request) {
-    $id = intval($request['id']);
-    $p  = get_post($id);
-    if (!$p || $p->post_type !== self::TCLASS) {
-      return new WP_Error('not_found', 'Class not found', ['status' => 404]);
-    }
-    return rest_ensure_response([
-      'id'          => $p->ID,
-      'class_name'  => get_the_title($p->ID),
-      'class_short' => (string) get_field('short_code', $p->ID),
-      'slug'        => $p->post_name,
-    ]);
-  }
-
-  /** ---------- Coach endpoints ---------- */
-  public function list_coaches($request) {
-    $per_page = max(1, intval($request['per_page']));
-    $page     = max(1, intval($request['page']));
-    $search   = is_string($request['search']) ? trim($request['search']) : '';
-    $code     = is_string($request['code'])   ? trim($request['code'])   : '';
-
-    $args = [
-      'post_type'      => self::COACH,
-      'posts_per_page' => $per_page,
-      'paged'          => $page,
-      'orderby'        => 'title',
-      'order'          => 'ASC',
-      's'              => $search,
-      'no_found_rows'  => false,
-    ];
-
-    if ($code !== '') {
-      $args['meta_query'] = [[
-        'key'     => 'coach_code',
-        'value'   => $code,
-        'compare' => '=',
-      ]];
-    }
-
-    $q = new WP_Query($args);
-
-    $items = [];
-    foreach ($q->posts as $p) {
-      $coach_id = $p->ID;
-      $coach_code = (string) get_field('coach_code', $coach_id);
-      $total = null;
-      $csv   = $this->compute_from_coach($coach_id, $total);
-
-      $items[] = [
-        'id'           => $coach_id,
-        'coach_code'   => $coach_code,
-        'total_seats'  => $total,
-        'front_facing' => $csv['front_csv'], // CSV strings
-        'back_facing'  => $csv['back_csv'],  // CSV strings
-        'slug'         => $p->post_name,
-      ];
-    }
-
-    return rest_ensure_response([
-      'items'=>$items,'total'=>intval($q->found_posts),'pages'=>intval($q->max_num_pages),
-      'page'=>$page,'per_page'=>$per_page,
-    ]);
-  }
-
-  public function get_coach($request) {
-    $id = intval($request['id']);
-    $p  = get_post($id);
-    if (!$p || $p->post_type !== self::COACH) {
-      return new WP_Error('not_found', 'Coach not found', ['status' => 404]);
-    }
-
-    $total = null;
-    $csv   = $this->compute_from_coach($id, $total);
-
-    return rest_ensure_response([
-      'id'           => $p->ID,
-      'coach_code'   => (string) get_field('coach_code', $p->ID),
-      'total_seats'  => $total,
-      'front_facing' => $csv['front_csv'],
-      'back_facing'  => $csv['back_csv'],
-      'slug'         => $p->post_name,
-    ]);
-  }
-
-  /** ---------- Station endpoints ---------- */
-  public function list_stations($request) {
-    $per_page = max(1, intval($request['per_page']));
-    $page     = max(1, intval($request['page']));
-    $search   = is_string($request['search']) ? trim($request['search']) : '';
-    $code     = is_string($request['code'])   ? trim($request['code'])   : '';
-
-    $args = [
-      'post_type'      => self::STATION,
-      'posts_per_page' => $per_page,
-      'paged'          => $page,
-      'orderby'        => 'title',
-      'order'          => 'ASC',
-      's'              => $search,
-      'no_found_rows'  => false,
-    ];
-
-    if ($code !== '') {
-      $args['meta_query'] = [[
-        'key'     => 'station_code',
-        'value'   => $code,
-        'compare' => '=',
-      ]];
-    }
-
-    $q = new WP_Query($args);
-
-    $items = [];
-    foreach ($q->posts as $p) {
-      $items[] = [
-        'id'    => $p->ID,
-        'title' => get_the_title($p->ID),               // mirrors code
-        'code'  => (string) get_field('station_code', $p->ID),
-        'slug'  => $p->post_name,
-      ];
-    }
-
-    return rest_ensure_response([
-      'items'=>$items,'total'=>intval($q->found_posts),'pages'=>intval($q->max_num_pages),
-      'page'=>$page,'per_page'=>$per_page,
-    ]);
-  }
-
-  public function get_station($request) {
-    $id = intval($request['id']);
-    $p  = get_post($id);
-    if (!$p || $p->post_type !== self::STATION) {
-      return new WP_Error('not_found', 'Station not found', ['status' => 404]);
-    }
-    return rest_ensure_response([
-      'id'    => $p->ID,
-      'title' => get_the_title($p->ID),
-      'code'  => (string) get_field('station_code', $p->ID),
-      'slug'  => $p->post_name,
-    ]);
   }
 
   /** Save hooks */
@@ -568,24 +308,6 @@ class BD_Railway_Headless_WithCoachClass {
     return $filtered;
   }
 
-  private function build_direction($rows, $dir = 'forward') {
-    if (!$rows || !is_array($rows)) return [];
-    $seq = ($dir === 'reverse') ? array_reverse($rows) : $rows;
-    $out = [];
-    foreach ($seq as $row) {
-      $sid = intval($row['station'] ?? 0);
-      if (!$sid) continue;
-      $out[] = [
-        'station' => [
-          'id'    => $sid,
-          'title' => get_the_title($sid),
-          'code'  => get_field('station_code', $sid),
-        ],
-      ];
-    }
-    return $out;
-  }
-
   private function find_station_id_by_code_or_title($token) {
     $token = trim($token);
     if ($token === '') return 0;
@@ -602,160 +324,33 @@ class BD_Railway_Headless_WithCoachClass {
     return $p ? intval($p->ID) : 0;
   }
 
-  /** Seats helpers */
-  private function clamp($n, $min, $max) { return max($min, min($max, $n)); }
-  private function range_list($start, $end) {
-    $start = intval($start); $end = intval($end);
-    if ($start <= 0 || $end <= 0) return [];
-    if ($end < $start) [$start,$end] = [$end,$start];
-    return range($start, $end);
-  }
-  private function list_to_csv($arr) {
-    $arr = array_values(array_unique(array_map('intval', $arr)));
-    sort($arr, SORT_NUMERIC);
-    return implode(',', $arr);
-  }
-
-  /** Compute seats from a COACH post (template) */
-  private function compute_from_coach($coach_id, &$out_total = null) {
+  /** Seat calculation helper methods */
+  public function calculate_seat_directions($coach_id) {
     $coach_id = intval($coach_id);
-    if (!$coach_id) return ['front_csv'=>'','back_csv'=>''];
+    if (!$coach_id) return ['total_seats' => 0, 'front_facing_seats' => [], 'back_facing_seats' => []];
+
     $total = intval(get_field('total_seats', $coach_id));
-    $out_total = $total ?: null;
-    if ($total <= 0) return ['front_csv'=>'','back_csv'=>''];
+    if ($total <= 0) return ['total_seats' => 0, 'front_facing_seats' => [], 'back_facing_seats' => []];
 
     $fs = intval(get_field('front_start', $coach_id));
     $fe = intval(get_field('front_end', $coach_id));
-    $front = ($fs && $fe) ? $this->range_list($this->clamp($fs,1,$total), $this->clamp($fe,1,$total)) : [];
+    $front = ($fs && $fe) ? range($fs, $fe) : [];
 
     $bs = intval(get_field('back_start', $coach_id));
     $be = intval(get_field('back_end', $coach_id));
     $auto = !empty(get_field('auto_back_fill', $coach_id));
 
     if ($bs && $be) {
-      $back = $this->range_list($this->clamp($bs,1,$total), $this->clamp($be,1,$total));
+      $back = range($bs, $be);
     } else {
-      $back = $auto ? array_values(array_diff(range(1,$total), $front)) : [];
+      $back = $auto ? array_values(array_diff(range(1, $total), $front)) : [];
     }
 
-    return ['front_csv'=>$this->list_to_csv($front),'back_csv'=>$this->list_to_csv($back)];
-  }
-
-  /** Compute seats from Travel Class defaults */
-  private function compute_from_tclass($class_id, &$out_total = null) {
-    $class_id = intval($class_id);
-    if (!$class_id) return ['front_csv'=>'','back_csv'=>''];
-    $total = intval(get_field('default_total_seats', $class_id));
-    $out_total = $total ?: null;
-    if ($total <= 0) return ['front_csv'=>'','back_csv'=>''];
-
-    $fs = intval(get_field('default_front_start', $class_id));
-    $fe = intval(get_field('default_front_end', $class_id));
-    $front = ($fs && $fe) ? $this->range_list($this->clamp($fs,1,$total), $this->clamp($fe,1,$total)) : [];
-
-    $bs = intval(get_field('default_back_start', $class_id));
-    $be = intval(get_field('default_back_end', $class_id));
-    $auto = !empty(get_field('default_auto_back_fill', $class_id));
-
-    if ($bs && $be) {
-      $back = $this->range_list($this->clamp($bs,1,$total), $this->clamp($be,1,$total));
-    } else {
-      $back = $auto ? array_values(array_diff(range(1,$total), $front)) : [];
-    }
-
-    return ['front_csv'=>$this->list_to_csv($front),'back_csv'=>$this->list_to_csv($back)];
-  }
-
-  /** Compute seats from train-level override fields */
-  private function compute_from_override($row) {
-    $total = isset($row['total_seats']) ? intval($row['total_seats']) : 0;
-    if ($total <= 0) return ['front_csv'=>'','back_csv'=>'','total'=>null];
-
-    $fs = $this->clamp(intval($row['front_start'] ?? 0), 1, $total);
-    $fe = $this->clamp(intval($row['front_end'] ?? 0),   1, $total);
-    $front = ($fs && $fe) ? $this->range_list($fs, $fe) : [];
-
-    $bs = intval($row['back_start'] ?? 0);
-    $be = intval($row['back_end'] ?? 0);
-    $auto = !empty($row['auto_back_fill']);
-
-    if ($bs && $be) {
-      $back = $this->range_list($this->clamp($bs,1,$total), $this->clamp($be,1,$total));
-    } else {
-      $back = $auto ? array_values(array_diff(range(1,$total), $front)) : [];
-    }
-
-    return ['front_csv'=>$this->list_to_csv($front),'back_csv'=>$this->list_to_csv($back),'total'=>$total];
-  }
-
-  /** Build classes array with CSV seats, honoring precedence: override > coach > class */
-  private function format_classes_csv($rows) {
-    if (!$rows || !is_array($rows)) return [];
-    $classes = [];
-    foreach ($rows as $classRow) {
-      $class_id = intval($classRow['class_ref'] ?? 0);
-      $class_name  = $class_id ? get_the_title($class_id) : '';
-      $class_short = $class_id ? (string) get_field('short_code', $class_id) : '';
-
-      $coachesOut = [];
-      if (!empty($classRow['coaches']) && is_array($classRow['coaches'])) {
-        foreach ($classRow['coaches'] as $coachRow) {
-          $coach_id = intval($coachRow['coach_ref'] ?? 0);
-          $coach_code = $coach_id ? (string) get_field('coach_code', $coach_id) : '';
-
-          // Seats: override > coach template > travel class defaults
-          if (!empty($coachRow['override_seats'])) {
-            $calc = $this->compute_from_override($coachRow);
-            $total = $calc['total'];
-          } else {
-            $calc = $this->compute_from_coach($coach_id, $total);
-            if ((!$calc['front_csv'] && !$calc['back_csv']) || !$total) {
-              $calc = $this->compute_from_tclass($class_id, $total);
-            }
-          }
-
-          $coachesOut[] = [
-            'coach_id'     => $coach_id ?: null,
-            'coach_code'   => $coach_code,
-            'total_seats'  => $total ?: null,
-            'front_facing' => $calc['front_csv'], // CSV strings
-            'back_facing'  => $calc['back_csv'],  // CSV strings
-          ];
-        }
-      }
-
-      $classes[] = [
-        'class_id'    => $class_id ?: null,
-        'class_short' => $class_short,
-        'class_name'  => $class_name,
-        'coaches'     => $coachesOut,
-      ];
-    }
-    return $classes;
-  }
-
-  private function reverse_classes_csv($rows) {
-    $normal = $this->format_classes_csv($rows);
-    $reverse = [];
-    foreach ($normal as $cls) {
-      $revCoaches = [];
-      foreach ($cls['coaches'] as $c) {
-        $revCoaches[] = [
-          'coach_id'     => $c['coach_id'],
-          'coach_code'   => $c['coach_code'],
-          'total_seats'  => $c['total_seats'],
-          'front_facing' => $c['back_facing'],
-          'back_facing'  => $c['front_facing'],
-        ];
-      }
-      $reverse[] = [
-        'class_id'    => $cls['class_id'],
-        'class_short' => $cls['class_short'],
-        'class_name'  => $cls['class_name'],
-        'coaches'     => $revCoaches
-      ];
-    }
-    return $reverse;
+    return [
+      'total_seats' => $total,
+      'front_facing_seats' => $front,
+      'back_facing_seats' => $back,
+    ];
   }
 }
 
