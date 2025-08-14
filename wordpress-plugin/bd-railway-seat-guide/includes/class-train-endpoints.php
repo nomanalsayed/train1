@@ -1069,3 +1069,78 @@ class BD_Railway_Train_Endpoints {
         error_log("BD Railway: Created sample coaches UMA and CHA for train ID: " . $train_id);
     }
 }
+<?php
+/**
+ * Train API Endpoints
+ * Handles all train-related REST API endpoints
+ */
+
+if (!defined('ABSPATH')) exit;
+
+class BD_Railway_Train_Endpoints {
+    private $parent;
+    
+    public function __construct($parent) {
+        $this->parent = $parent;
+    }
+    
+    public function register_routes() {
+        // List all trains
+        register_rest_route($this->parent::API_NAMESPACE, '/trains', [
+            'methods' => 'GET',
+            'callback' => [$this, 'list_trains'],
+            'permission_callback' => '__return_true',
+            'args' => [
+                'per_page' => ['default' => 100, 'sanitize_callback' => 'absint'],
+                'page' => ['default' => 1, 'sanitize_callback' => 'absint'],
+                'search' => ['default' => '', 'sanitize_callback' => 'sanitize_text_field'],
+                'number' => ['default' => '', 'sanitize_callback' => 'sanitize_text_field'],
+            ],
+        ]);
+        
+        // Get single train by ID
+        register_rest_route($this->parent::API_NAMESPACE, '/trains/(?P<id>\d+)', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_train'],
+            'permission_callback' => '__return_true',
+        ]);
+        
+        // Get train by number
+        register_rest_route($this->parent::API_NAMESPACE, '/trains/by-number/(?P<number>[a-zA-Z0-9_-]+)', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_train_by_number'],
+            'permission_callback' => '__return_true',
+        ]);
+    }
+    
+    /**
+     * List all trains
+     */
+    public function list_trains($request) {
+        return rest_ensure_response([
+            'trains' => [],
+            'total' => 0,
+            'message' => 'Train endpoints not yet implemented',
+        ]);
+    }
+    
+    /**
+     * Get single train by ID
+     */
+    public function get_train($request) {
+        return rest_ensure_response([
+            'train' => null,
+            'message' => 'Train endpoints not yet implemented',
+        ]);
+    }
+    
+    /**
+     * Get train by number
+     */
+    public function get_train_by_number($request) {
+        return rest_ensure_response([
+            'train' => null,
+            'message' => 'Train endpoints not yet implemented',
+        ]);
+    }
+}

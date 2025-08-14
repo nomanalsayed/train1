@@ -187,7 +187,7 @@ class BD_Railway_Headless_WithCoachClass {
 
   /** REST */
   public function register_rest_routes() {
-    // Trains
+    // Trains endpoint
     register_rest_route('rail/v1', '/train/(?P<id>\d+)', [
       'methods'=>'GET','callback'=>[$this,'get_train'],'permission_callback'=>'__return_true',
     ]);

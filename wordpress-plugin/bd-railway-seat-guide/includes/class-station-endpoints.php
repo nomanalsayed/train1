@@ -552,3 +552,43 @@ class BD_Railway_Station_Endpoints {
         ];
     }
 }
+<?php
+/**
+ * Station API Endpoints
+ * Handles all station-related REST API endpoints
+ */
+
+if (!defined('ABSPATH')) exit;
+
+class BD_Railway_Station_Endpoints {
+    private $parent;
+    
+    public function __construct($parent) {
+        $this->parent = $parent;
+    }
+    
+    public function register_routes() {
+        // List all stations
+        register_rest_route($this->parent::API_NAMESPACE, '/stations', [
+            'methods' => 'GET',
+            'callback' => [$this, 'list_stations'],
+            'permission_callback' => '__return_true',
+            'args' => [
+                'per_page' => ['default' => 100, 'sanitize_callback' => 'absint'],
+                'page' => ['default' => 1, 'sanitize_callback' => 'absint'],
+                'search' => ['default' => '', 'sanitize_callback' => 'sanitize_text_field'],
+            ],
+        ]);
+    }
+    
+    /**
+     * List all stations
+     */
+    public function list_stations($request) {
+        return rest_ensure_response([
+            'stations' => [],
+            'total' => 0,
+            'message' => 'Station endpoints not yet implemented',
+        ]);
+    }
+}

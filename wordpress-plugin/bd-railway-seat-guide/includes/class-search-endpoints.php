@@ -543,3 +543,42 @@ class BD_Railway_Search_Endpoints {
         return $results;
     }
 }
+<?php
+/**
+ * Search API Endpoints
+ * Handles all search-related REST API endpoints
+ */
+
+if (!defined('ABSPATH')) exit;
+
+class BD_Railway_Search_Endpoints {
+    private $parent;
+    
+    public function __construct($parent) {
+        $this->parent = $parent;
+    }
+    
+    public function register_routes() {
+        // Universal search
+        register_rest_route($this->parent::API_NAMESPACE, '/search', [
+            'methods' => 'GET',
+            'callback' => [$this, 'universal_search'],
+            'permission_callback' => '__return_true',
+            'args' => [
+                'q' => ['default' => '', 'sanitize_callback' => 'sanitize_text_field'],
+                'type' => ['default' => '', 'sanitize_callback' => 'sanitize_text_field'],
+            ],
+        ]);
+    }
+    
+    /**
+     * Universal search
+     */
+    public function universal_search($request) {
+        return rest_ensure_response([
+            'results' => [],
+            'total' => 0,
+            'message' => 'Search endpoints not yet implemented',
+        ]);
+    }
+}
