@@ -1,523 +1,762 @@
 <?php
 /**
- * BD Railway Seat Guide
- * 
- * Plugin Name: BD Railway Seat Guide
- * Plugin URI: https://github.com/example/bd-railway-seat-guide
- * Description: A comprehensive WordPress plugin for Bangladesh Railway seat directions and coach information
- * Version: 1.0.0
- * Author: Your Name
- * License: GPL2
- * Text Domain: bd-railway
+ * Plugin Name: BD Railway Headless (ACF Pro) — Minimal Routes + Coach & Class CPTs
+ * Description: Trains/Stations CPTs, single Routes, Coach & Travel Class CPTs selectable on Train, CSV seats in API. No dummy data, sortable station picker, class default layouts.
+ * Version:     2.0.0
  */
 
 if (!defined('ABSPATH')) exit;
 
-class BD_Railway_Seat_Guide {
-    const VERSION = '1.0.0';
-    const API_NAMESPACE = 'bd-railway/v1';
-    const TRAIN = 'bd_train';
-    const COACH = 'bd_coach';
-    const STATION = 'bd_station';
-    
-    private $train_endpoints;
-    private $coach_endpoints;
-    private $station_endpoints;
-    private $search_endpoints;
-    
-    public function __construct() {
-        add_action('init', [$this, 'init']);
-        add_action('rest_api_init', [$this, 'register_api_routes']);
-        register_activation_hook(__FILE__, [$this, 'activate']);
-        register_deactivation_hook(__FILE__, [$this, 'deactivate']);
-    }
-    
-    public function init() {
-        $this->register_post_types();
-        $this->setup_custom_fields();
-        $this->load_dependencies();
-    }
-    
-    public function activate() {
-        $this->register_post_types();
-        flush_rewrite_rules();
-        $this->create_sample_data();
-    }
-    
-    public function deactivate() {
-        flush_rewrite_rules();
-    }
-    
-    private function register_post_types() {
-        // Register Train post type
-        register_post_type(self::TRAIN, [
-            'labels' => [
-                'name' => __('Trains', 'bd-railway'),
-                'singular_name' => __('Train', 'bd-railway'),
-            ],
-            'public' => true,
-            'show_in_rest' => true,
-            'supports' => ['title', 'editor'],
-            'menu_icon' => 'dashicons-location-alt',
-        ]);
-        
-        // Register Coach post type
-        register_post_type(self::COACH, [
-            'labels' => [
-                'name' => __('Coaches', 'bd-railway'),
-                'singular_name' => __('Coach', 'bd-railway'),
-            ],
-            'public' => true,
-            'show_in_rest' => true,
-            'supports' => ['title', 'editor'],
-            'menu_icon' => 'dashicons-admin-multisite',
-        ]);
-        
-        // Register Station post type
-        register_post_type(self::STATION, [
-            'labels' => [
-                'name' => __('Stations', 'bd-railway'),
-                'singular_name' => __('Station', 'bd-railway'),
-            ],
-            'public' => true,
-            'show_in_rest' => true,
-            'supports' => ['title', 'editor'],
-            'menu_icon' => 'dashicons-building',
-        ]);
-    }
-    
-    private function setup_custom_fields() {
-        if (!function_exists('acf_add_local_field_group')) return;
-        
-        // Train fields
-        acf_add_local_field_group([
-            'key' => 'group_train_details',
-            'title' => 'Train Details',
-            'fields' => [
-                [
-                    'key' => 'field_train_number',
-                    'label' => 'Train Number',
-                    'name' => 'train_number',
-                    'type' => 'text',
-                    'required' => 1,
-                ],
-                [
-                    'key' => 'field_reverse_train_number',
-                    'label' => 'Reverse Train Number',
-                    'name' => 'reverse_train_number',
-                    'type' => 'text',
-                ],
-                [
-                    'key' => 'field_origin_station',
-                    'label' => 'Origin Station',
-                    'name' => 'origin_station',
-                    'type' => 'post_object',
-                    'post_type' => [self::STATION],
-                ],
-                [
-                    'key' => 'field_destination_station',
-                    'label' => 'Destination Station',
-                    'name' => 'destination_station',
-                    'type' => 'post_object',
-                    'post_type' => [self::STATION],
-                ],
-                [
-                    'key' => 'field_train_coaches',
-                    'label' => 'Train Coaches',
-                    'name' => 'train_coaches',
-                    'type' => 'repeater',
-                    'sub_fields' => [
-                        [
-                            'key' => 'field_coach_reference',
-                            'label' => 'Coach',
-                            'name' => 'coach_reference',
-                            'type' => 'post_object',
-                            'post_type' => [self::COACH],
-                        ],
-                        [
-                            'key' => 'field_coach_position',
-                            'label' => 'Position',
-                            'name' => 'position',
-                            'type' => 'number',
-                        ],
-                    ],
-                ],
-            ],
-            'location' => [
-                [
-                    [
-                        'param' => 'post_type',
-                        'operator' => '==',
-                        'value' => self::TRAIN,
-                    ],
-                ],
-            ],
-        ]);
-        
-        // Coach fields
-        acf_add_local_field_group([
-            'key' => 'group_coach_details',
-            'title' => 'Coach Details',
-            'fields' => [
-                [
-                    'key' => 'field_coach_code',
-                    'label' => 'Coach Code',
-                    'name' => 'coach_code',
-                    'type' => 'text',
-                    'required' => 1,
-                ],
-                [
-                    'key' => 'field_coach_type',
-                    'label' => 'Coach Type',
-                    'name' => 'coach_type',
-                    'type' => 'select',
-                    'choices' => [
-                        'S_CHAIR' => 'Shovan Chair',
-                        'AC_S' => 'AC Seat',
-                        'AC_B' => 'AC Berth',
-                        'F_SEAT' => 'First Class Seat',
-                        'F_BERTH' => 'First Class Berth',
-                        'SHULOV' => 'Shulov',
-                        'CHA' => 'Chair Car',
-                    ],
-                    'default_value' => 'S_CHAIR',
-                ],
-                [
-                    'key' => 'field_total_seats',
-                    'label' => 'Total Seats',
-                    'name' => 'total_seats',
-                    'type' => 'number',
-                    'default_value' => 60,
-                ],
-                [
-                    'key' => 'field_seat_layout',
-                    'label' => 'Seat Layout',
-                    'name' => 'seat_layout',
-                    'type' => 'select',
-                    'choices' => [
-                        'mixed' => 'Mixed (Front and Back facing)',
-                        'all_front' => 'All Front Facing',
-                        'all_back' => 'All Back Facing',
-                        'custom' => 'Custom Layout',
-                    ],
-                    'default_value' => 'mixed',
-                ],
-                [
-                    'key' => 'field_front_facing_seats',
-                    'label' => 'Front Facing Seats',
-                    'name' => 'front_facing_seats',
-                    'type' => 'textarea',
-                    'instructions' => 'Comma separated seat numbers (e.g., 1,2,3,4,5)',
-                ],
-                [
-                    'key' => 'field_back_facing_seats',
-                    'label' => 'Back Facing Seats',
-                    'name' => 'back_facing_seats',
-                    'type' => 'textarea',
-                    'instructions' => 'Comma separated seat numbers (e.g., 31,32,33,34,35)',
-                ],
-            ],
-            'location' => [
-                [
-                    [
-                        'param' => 'post_type',
-                        'operator' => '==',
-                        'value' => self::COACH,
-                    ],
-                ],
-            ],
-        ]);
-        
-        // Station fields
-        acf_add_local_field_group([
-            'key' => 'group_station_details',
-            'title' => 'Station Details',
-            'fields' => [
-                [
-                    'key' => 'field_station_code',
-                    'label' => 'Station Code',
-                    'name' => 'station_code',
-                    'type' => 'text',
-                    'required' => 1,
-                ],
-            ],
-            'location' => [
-                [
-                    [
-                        'param' => 'post_type',
-                        'operator' => '==',
-                        'value' => self::STATION,
-                    ],
-                ],
-            ],
-        ]);
-    }
-    
-    private function load_dependencies() {
-        require_once plugin_dir_path(__FILE__) . 'includes/class-train-endpoints.php';
-        require_once plugin_dir_path(__FILE__) . 'includes/class-coach-endpoints.php';
-        require_once plugin_dir_path(__FILE__) . 'includes/class-station-endpoints.php';
-        require_once plugin_dir_path(__FILE__) . 'includes/class-search-endpoints.php';
-        
-        $this->train_endpoints = new BD_Railway_Train_Endpoints($this);
-        $this->coach_endpoints = new BD_Railway_Coach_Endpoints($this);
-        $this->station_endpoints = new BD_Railway_Station_Endpoints($this);
-        $this->search_endpoints = new BD_Railway_Search_Endpoints($this);
-    }
-    
-    public function register_api_routes() {
-        if ($this->train_endpoints) $this->train_endpoints->register_routes();
-        if ($this->coach_endpoints) $this->coach_endpoints->register_routes();
-        if ($this->station_endpoints) $this->station_endpoints->register_routes();
-        if ($this->search_endpoints) $this->search_endpoints->register_routes();
-    }
-    
-    /**
-     * Calculate seat directions for a coach with robust fallback logic
-     */
-    public function calculate_seat_directions($coach_id, $coach_data = null) {
-        $total_seats = intval(get_field('total_seats', $coach_id)) ?: 60;
-        $seat_layout = get_field('seat_layout', $coach_id) ?: 'mixed';
-        
-        // Get custom seat configurations
-        $front_facing_raw = get_field('front_facing_seats', $coach_id);
-        $back_facing_raw = get_field('back_facing_seats', $coach_id);
-        
-        $front_facing_seats = [];
-        $back_facing_seats = [];
-        
-        // Parse custom seat numbers if provided
-        if (!empty($front_facing_raw)) {
-            $front_facing_seats = array_map('intval', array_filter(explode(',', $front_facing_raw)));
-        }
-        
-        if (!empty($back_facing_raw)) {
-            $back_facing_seats = array_map('intval', array_filter(explode(',', $back_facing_raw)));
-        }
-        
-        // If no custom seats defined, generate based on layout and coach code
-        if (empty($front_facing_seats) && empty($back_facing_seats)) {
-            $coach_code = get_field('coach_code', $coach_id);
-            $result = $this->generate_seats_by_layout($total_seats, $seat_layout, $coach_code);
-            $front_facing_seats = $result['front_facing_seats'];
-            $back_facing_seats = $result['back_facing_seats'];
-        }
-        
-        // Ensure all seats are accounted for
-        $all_assigned_seats = array_merge($front_facing_seats, $back_facing_seats);
-        $missing_seats = [];
-        
-        for ($i = 1; $i <= $total_seats; $i++) {
-            if (!in_array($i, $all_assigned_seats)) {
-                $missing_seats[] = $i;
-            }
-        }
-        
-        // Assign missing seats based on layout preference
-        if (!empty($missing_seats)) {
-            if ($seat_layout === 'all_front' || (count($front_facing_seats) >= count($back_facing_seats))) {
-                $front_facing_seats = array_merge($front_facing_seats, $missing_seats);
-            } else {
-                $back_facing_seats = array_merge($back_facing_seats, $missing_seats);
-            }
-        }
-        
-        // Sort the arrays
-        sort($front_facing_seats);
-        sort($back_facing_seats);
-        
-        return [
-            'total_seats' => $total_seats,
-            'front_facing_seats' => $front_facing_seats,
-            'back_facing_seats' => $back_facing_seats,
-        ];
-    }
-    
-    /**
-     * Generate seats based on layout and coach code
-     */
-    private function generate_seats_by_layout($total_seats, $layout, $coach_code = '') {
-        $front_facing_seats = [];
-        $back_facing_seats = [];
-        
-        switch ($layout) {
-            case 'all_front':
-                $front_facing_seats = range(1, $total_seats);
-                break;
-                
-            case 'all_back':
-                $back_facing_seats = range(1, $total_seats);
-                break;
-                
-            case 'mixed':
-            default:
-                // Generate mixed layout based on coach code or default pattern
-                $half = ceil($total_seats / 2);
-                
-                if (in_array(strtoupper($coach_code), ['CHA', 'SCHA'])) {
-                    // CHA and SCHA have specific patterns
-                    if (strtoupper($coach_code) === 'CHA') {
-                        $front_facing_seats = range(1, $half);
-                        $back_facing_seats = range($half + 1, $total_seats);
-                    } else { // SCHA
-                        $back_facing_seats = range(1, $half);
-                        $front_facing_seats = range($half + 1, $total_seats);
-                    }
-                } elseif (strtoupper($coach_code) === 'UMA') {
-                    // UMA is typically all front facing
-                    $front_facing_seats = range(1, $total_seats);
-                } elseif (strtoupper($coach_code) === 'JA') {
-                    // JA is typically all back facing
-                    $back_facing_seats = range(1, $total_seats);
-                } else {
-                    // Default mixed pattern
-                    $front_facing_seats = range(1, $half);
-                    $back_facing_seats = range($half + 1, $total_seats);
-                }
-                break;
-        }
-        
-        return [
-            'front_facing_seats' => $front_facing_seats,
-            'back_facing_seats' => $back_facing_seats,
-        ];
-    }
-    
-    /**
-     * Create comprehensive sample data
-     */
-    private function create_sample_data() {
-        // Check if data already exists
-        $existing_trains = get_posts([
-            'post_type' => self::TRAIN,
-            'posts_per_page' => 1,
-            'post_status' => 'publish',
-        ]);
-        
-        if (!empty($existing_trains)) {
-            return; // Data already exists
-        }
-        
-        // Create stations
-        $dhaka_id = $this->create_station('DHAKA', 'DHA');
-        $panchagarh_id = $this->create_station('PANCHAGARH', 'PCG');
-        $chittagong_id = $this->create_station('CHITTAGONG', 'CTG');
-        $sylhet_id = $this->create_station('SYLHET', 'SYL');
-        
-        // Create coaches with proper seat data
-        $coaches_data = [
-            ['code' => 'CHA', 'type' => 'S_CHAIR', 'total' => 60, 'layout' => 'mixed'],
-            ['code' => 'SCHA', 'type' => 'S_CHAIR', 'total' => 60, 'layout' => 'mixed'],
-            ['code' => 'UMA', 'type' => 'S_CHAIR', 'total' => 48, 'layout' => 'all_front'],
-            ['code' => 'JA', 'type' => 'S_CHAIR', 'total' => 48, 'layout' => 'all_back'],
-        ];
-        
-        $coach_ids = [];
-        foreach ($coaches_data as $coach_data) {
-            $coach_id = $this->create_coach($coach_data);
-            if ($coach_id) {
-                $coach_ids[] = $coach_id;
-            }
-        }
-        
-        // Create trains
-        $trains_data = [
+class BD_Railway_Headless_WithCoachClass {
+  const TRAIN   = 'train';
+  const STATION = 'station';
+  const COACH   = 'coach';
+  const TCLASS  = 'travel_class';
+
+  public function __construct() {
+    add_action('init', [$this, 'register_cpts']);
+    add_action('acf/include_fields', [$this, 'register_acf_groups']);
+    add_action('rest_api_init', [$this, 'register_rest_routes']);
+
+    // Save hooks
+    add_action('acf/save_post', [$this, 'sync_routes_on_save'], 20);
+    add_action('acf/save_post', [$this, 'sync_station_title_on_save'], 20);
+    add_action('acf/save_post', [$this, 'sync_coach_title_on_save'], 20);
+    add_action('acf/save_post', [$this, 'sync_tclass_short_normalize'], 20);
+  }
+
+  /** CPTs */
+  public function register_cpts() {
+    // Station
+    register_post_type(self::STATION, [
+      'label' => 'Stations',
+      'public' => true,
+      'show_in_rest' => true,
+      'supports' => ['title'], // title mirrors station_code
+      'rewrite' => ['slug' => 'station'],
+      'menu_icon' => 'dashicons-location',
+    ]);
+
+    // Train
+    register_post_type(self::TRAIN, [
+      'label' => 'Trains',
+      'public' => true,
+      'show_in_rest' => true,
+      'supports' => ['title','editor','thumbnail'],
+      'rewrite' => ['slug' => 'train'],
+      'menu_icon' => 'dashicons-admin-site-alt3',
+    ]);
+
+    // Coach
+    register_post_type(self::COACH, [
+      'label' => 'Coaches',
+      'public' => true,
+      'show_in_rest' => true,
+      'supports' => ['title'], // title mirrors coach_code
+      'rewrite' => ['slug' => 'coach'],
+      'menu_icon' => 'dashicons-id-alt',
+    ]);
+
+    // Travel Class
+    register_post_type(self::TCLASS, [
+      'label' => 'Travel Classes',
+      'public' => true,
+      'show_in_rest' => true,
+      'supports' => ['title'], // title = Full Class Name
+      'rewrite' => ['slug' => 'travel-class'],
+      'menu_icon' => 'dashicons-welcome-learn-more',
+    ]);
+  }
+
+  /** ACF (requires ACF Pro) */
+  public function register_acf_groups() {
+    if (!function_exists('acf_add_local_field_group')) return;
+
+    /* Station fields */
+    acf_add_local_field_group([
+      'key' => 'group_station',
+      'title' => 'Station Fields',
+      'show_in_rest' => 1,
+      'fields' => [
+        ['key'=>'st_code','label'=>'Station Code','name'=>'station_code','type'=>'text','instructions'=>'e.g., DAC','required'=>1],
+      ],
+      'location' => [[['param'=>'post_type','operator'=>'==','value'=>self::STATION]]],
+    ]);
+
+    /* Coach fields */
+    acf_add_local_field_group([
+      'key' => 'group_coach',
+      'title' => 'Coach Fields',
+      'show_in_rest' => 1,
+      'fields' => [
+        ['key'=>'coach_code','label'=>'Coach Code','name'=>'coach_code','type'=>'text','instructions'=>'e.g., UMA','required'=>1],
+        ['key'=>'coach_total','label'=>'Total Seats','name'=>'total_seats','type'=>'number','min'=>1,'required'=>1],
+        ['key'=>'coach_f_start','label'=>'Front-facing Start','name'=>'front_start','type'=>'number','min'=>1],
+        ['key'=>'coach_f_end','label'=>'Front-facing End','name'=>'front_end','type'=>'number','min'=>1],
+        ['key'=>'coach_b_start','label'=>'Back-facing Start (optional)','name'=>'back_start','type'=>'number','min'=>1],
+        ['key'=>'coach_b_end','label'=>'Back-facing End (optional)','name'=>'back_end','type'=>'number','min'=>1],
+        ['key'=>'coach_auto_b','label'=>'Auto-fill Back-facing from remaining','name'=>'auto_back_fill','type'=>'true_false','ui'=>1,'default_value'=>1],
+      ],
+      'location' => [[['param'=>'post_type','operator'=>'==','value'=>self::COACH]]],
+    ]);
+
+    /* Travel Class fields (now with default seat template) */
+    acf_add_local_field_group([
+      'key' => 'group_tclass',
+      'title' => 'Travel Class Fields',
+      'show_in_rest' => 1,
+      'fields' => [
+        ['key'=>'tclass_short','label'=>'Short Code','name'=>'short_code','type'=>'text','instructions'=>'e.g., AC_B','required'=>1],
+        ['key'=>'tclass_sep','label'=>'Default Seat Template (optional)','type'=>'message','message'=>'If a Coach has no template and there is no per-train override, these defaults apply.'],
+        ['key'=>'tclass_total','label'=>'Default Total Seats','name'=>'default_total_seats','type'=>'number','min'=>1],
+        ['key'=>'tclass_f_start','label'=>'Default Front-facing Start','name'=>'default_front_start','type'=>'number','min'=>1],
+        ['key'=>'tclass_f_end','label'=>'Default Front-facing End','name'=>'default_front_end','type'=>'number','min'=>1],
+        ['key'=>'tclass_b_start','label'=>'Default Back-facing Start (optional)','name'=>'default_back_start','type'=>'number','min'=>1],
+        ['key'=>'tclass_b_end','label'=>'Default Back-facing End (optional)','name'=>'default_back_end','type'=>'number','min'=>1],
+        ['key'=>'tclass_auto_b','label'=>'Auto-fill Back-facing from remaining','name'=>'default_auto_back_fill','type'=>'true_false','ui'=>1,'default_value'=>1],
+      ],
+      'location' => [[['param'=>'post_type','operator'=>'==','value'=>self::TCLASS]]],
+    ]);
+
+    /* Train fields */
+    acf_add_local_field_group([
+      'key' => 'group_train',
+      'title' => 'Train Fields',
+      'show_in_rest' => 1,
+      'location' => [[['param'=>'post_type','operator'=>'==','value'=>self::TRAIN]]],
+      'fields' => [
+        ['key'=>'tab_basic','label'=>'Basic Info','type'=>'tab','placement'=>'top'],
+        [
+          'key'=>'tr_from','label'=>'From Station','name'=>'origin_station','type'=>'post_object',
+          'post_type'=>[self::STATION],'return_format'=>'id','ui'=>1,'required'=>1,
+        ],
+        [
+          'key'=>'tr_to','label'=>'To Station','name'=>'destination_station','type'=>'post_object',
+          'post_type'=>[self::STATION],'return_format'=>'id','ui'=>1,'required'=>1,
+        ],
+        ['key'=>'code_ft','label'=>'Route Code (From → To)','name'=>'code_from_to','type'=>'text'],
+        ['key'=>'code_tf','label'=>'Route Code (To → From)','name'=>'code_to_from','type'=>'text'],
+
+        ['key'=>'tab_routes','label'=>'Routes','type'=>'tab','placement'=>'top'],
+        [
+          'key'=>'routes_picker','label'=>'Middle Stops (Picker)','name'=>'routes_picker','type'=>'relationship',
+          'post_type'=>[self::STATION],'return_format'=>'id','filters'=>['search'],'elements'=>['featured_image'],
+          'instructions'=>'Select only the stations between From and To. Drag to sort. Leave empty if you prefer CSV or manual repeater.',
+        ],
+        [
+          'key'=>'routes_csv','label'=>'Bulk Stations (CSV)','name'=>'routes_csv','type'=>'textarea',
+          'instructions'=>'Paste station codes or titles (comma-separated) for middle stops only. Endpoints auto-managed.',
+        ],
+        [
+          'key'=>'routes','label'=>'Routes','name'=>'routes','type'=>'repeater','layout'=>'row','button_label'=>'Add Station',
+          'instructions' => 'Add only stations between From and To (endpoints are auto-added on save).',
+          'sub_fields'=>[
+            ['key'=>'rt_station','label'=>'Station','name'=>'station','type'=>'post_object','post_type'=>[self::STATION],'return_format'=>'id','ui'=>1,'required'=>1],
+          ],
+        ],
+
+        ['key'=>'tab_classes','label'=>'Travel Classes & Coaches','type'=>'tab','placement'=>'top'],
+        [
+          'key'=>'train_classes','label'=>'Train Classes','name'=>'train_classes','type'=>'repeater','layout'=>'row','button_label'=>'Add Class',
+          'sub_fields'=>[
             [
-                'name' => 'EKOTA EXPRESS',
-                'number' => '705',
-                'reverse' => '706',
-                'origin' => $dhaka_id,
-                'destination' => $panchagarh_id,
+              'key'=>'cls_ref','label'=>'Class','name'=>'class_ref','type'=>'post_object',
+              'post_type'=>[self::TCLASS],'return_format'=>'id','ui'=>1,'required'=>1,
             ],
             [
-                'name' => 'MOHANAGAR GODHULI',
-                'number' => '707',
-                'reverse' => '708',
-                'origin' => $dhaka_id,
-                'destination' => $chittagong_id,
+              'key'=>'coaches','label'=>'Coaches','name'=>'coaches','type'=>'repeater','layout'=>'row','button_label'=>'Add Coach',
+              'sub_fields'=>[
+                [
+                  'key'=>'coach_ref','label'=>'Coach','name'=>'coach_ref','type'=>'post_object',
+                  'post_type'=>[self::COACH],'return_format'=>'id','ui'=>1,'required'=>1,
+                ],
+                ['key'=>'override_flag','label'=>'Override Coach Seats for this Train','name'=>'override_seats','type'=>'true_false','ui'=>1,'default_value'=>0],
+                ['key'=>'ch_total','label'=>'Total Seats (override)','name'=>'total_seats','type'=>'number','min'=>1,'conditional_logic'=>[['field'=>'override_flag','operator'=>'==','value'=>1]]],
+                ['key'=>'ch_f_start','label'=>'Front-facing Start (override)','name'=>'front_start','type'=>'number','min'=>1,'conditional_logic'=>[['field'=>'override_flag','operator'=>'==','value'=>1]]],
+                ['key'=>'ch_f_end','label'=>'Front-facing End (override)','name'=>'front_end','type'=>'number','min'=>1,'conditional_logic'=>[['field'=>'override_flag','operator'=>'==','value'=>1]]],
+                ['key'=>'ch_b_start','label'=>'Back-facing Start (override)','name'=>'back_start','type'=>'number','min'=>1,'conditional_logic'=>[['field'=>'override_flag','operator'=>'==','value'=>1]]],
+                ['key'=>'ch_b_end','label'=>'Back-facing End (override)','name'=>'back_end','type'=>'number','min'=>1,'conditional_logic'=>[['field'=>'override_flag','operator'=>'==','value'=>1]]],
+                ['key'=>'ch_auto_b','label'=>'Auto-fill Back-facing (override)','name'=>'auto_back_fill','type'=>'true_false','ui'=>1,'default_value'=>1,'conditional_logic'=>[['field'=>'override_flag','operator'=>'==','value'=>1]]],
+              ],
             ],
-            [
-                'name' => 'SURMA MAIL',
-                'number' => '709',
-                'reverse' => '710',
-                'origin' => $dhaka_id,
-                'destination' => $sylhet_id,
-            ],
-        ];
-        
-        foreach ($trains_data as $train_data) {
-            $this->create_train($train_data, $coach_ids);
-        }
+          ],
+        ],
+      ],
+    ]);
+  }
+
+  /** REST */
+  public function register_rest_routes() {
+    // Trains
+    register_rest_route('rail/v1', '/train/(?P<id>\d+)', [
+      'methods'=>'GET','callback'=>[$this,'get_train'],'permission_callback'=>'__return_true',
+    ]);
+    register_rest_route('rail/v1', '/trains', [
+      'methods'=>'GET','callback'=>[$this,'list_trains'],'permission_callback'=>'__return_true',
+      'args'=>['per_page'=>['default'=>50],'page'=>['default'=>1]],
+    ]);
+
+    // Travel Classes
+    register_rest_route('rail/v1', '/classes', [
+      'methods'=>'GET','callback'=>[$this,'list_classes'],'permission_callback'=>'__return_true',
+      'args'=>[
+        'per_page'=>['default'=>100],
+        'page'    =>['default'=>1],
+        'search'  =>['default'=>''],
+        'short'   =>['default'=>''], // short_code exact match
+      ],
+    ]);
+    register_rest_route('rail/v1', '/class/(?P<id>\d+)', [
+      'methods'=>'GET','callback'=>[$this,'get_class'],'permission_callback'=>'__return_true',
+    ]);
+
+    // Coaches
+    register_rest_route('rail/v1', '/coaches', [
+      'methods'=>'GET','callback'=>[$this,'list_coaches'],'permission_callback'=>'__return_true',
+      'args'=>[
+        'per_page'=>['default'=>100],
+        'page'    =>['default'=>1],
+        'search'  =>['default'=>''],
+        'code'    =>['default'=>''], // coach_code exact match
+      ],
+    ]);
+    register_rest_route('rail/v1', '/coach/(?P<id>\d+)', [
+      'methods'=>'GET','callback'=>[$this,'get_coach'],'permission_callback'=>'__return_true',
+    ]);
+
+    // Stations
+    register_rest_route('rail/v1', '/stations', [
+      'methods'=>'GET','callback'=>[$this,'list_stations'],'permission_callback'=>'__return_true',
+      'args'=>[
+        'per_page'=>['default'=>200],
+        'page'    =>['default'=>1],
+        'search'  =>['default'=>''], // search by title (code)
+        'code'    =>['default'=>''], // station_code exact match
+      ],
+    ]);
+    register_rest_route('rail/v1', '/station/(?P<id>\d+)', [
+      'methods'=>'GET','callback'=>[$this,'get_station'],'permission_callback'=>'__return_true',
+    ]);
+  }
+
+  /** ---------- Train endpoints ---------- */
+  public function get_train($request) {
+    $id = intval($request['id']);
+    $post = get_post($id);
+    if (!$post || $post->post_type !== self::TRAIN) {
+      return new WP_Error('not_found','Train not found',['status'=>404]);
     }
-    
-    private function create_station($name, $code) {
-        $station_id = wp_insert_post([
-            'post_title' => $name,
-            'post_type' => self::STATION,
-            'post_status' => 'publish',
-        ]);
-        
-        if ($station_id && !is_wp_error($station_id)) {
-            update_field('station_code', $code, $station_id);
-        }
-        
-        return $station_id;
+
+    $origin = intval(get_field('origin_station', $id));
+    $dest   = intval(get_field('destination_station', $id));
+    $routes = get_field('routes', $id) ?: [];
+
+    $payload = [
+      'id'                 => $id,
+      'train_name'         => get_the_title($id),
+      'from_station'       => $origin ? ['id'=>$origin,'title'=>get_the_title($origin),'code'=>get_field('station_code',$origin)] : null,
+      'to_station'         => $dest ? ['id'=>$dest,'title'=>get_the_title($dest),'code'=>get_field('station_code',$dest)] : null,
+      'code_from_to'       => (string) get_field('code_from_to', $id),
+      'code_to_from'       => (string) get_field('code_to_from', $id),
+      'route_from_to'      => $this->build_direction($routes, 'forward'),
+      'route_to_from'      => $this->build_direction($routes, 'reverse'),
+      'train_classes'      => $this->format_classes_csv(get_field('train_classes',$id)),
+      'train_classes_reverse' => $this->reverse_classes_csv(get_field('train_classes',$id)),
+    ];
+
+    return rest_ensure_response($payload);
+  }
+
+  public function list_trains($request) {
+    $per_page = max(1, intval($request['per_page']));
+    $page     = max(1, intval($request['page']));
+    $q = new WP_Query([
+      'post_type'=>self::TRAIN,'posts_per_page'=>$per_page,'paged'=>$page,
+      'orderby'=>'title','order'=>'ASC','no_found_rows'=>false,
+    ]);
+
+    $items = [];
+    foreach ($q->posts as $p) {
+      $origin = intval(get_field('origin_station', $p->ID));
+      $dest   = intval(get_field('destination_station', $p->ID));
+      $items[] = [
+        'id'=>$p->ID,
+        'title'=>get_the_title($p),
+        'train_name'=>get_the_title($p),
+        'from_station'=>$origin ? ['id'=>$origin,'title'=>get_the_title($origin),'code'=>get_field('station_code',$origin)] : null,
+        'to_station'=>$dest ? ['id'=>$dest,'title'=>get_the_title($dest),'code'=>get_field('station_code',$dest)] : null,
+        'code_from_to'=>(string) get_field('code_from_to',$p->ID),
+        'code_to_from'=>(string) get_field('code_to_from',$p->ID),
+      ];
     }
-    
-    private function create_coach($coach_data) {
-        $coach_id = wp_insert_post([
-            'post_title' => $coach_data['code'] . ' Coach',
-            'post_type' => self::COACH,
-            'post_status' => 'publish',
-        ]);
-        
-        if ($coach_id && !is_wp_error($coach_id)) {
-            update_field('coach_code', $coach_data['code'], $coach_id);
-            update_field('coach_type', $coach_data['type'], $coach_id);
-            update_field('total_seats', $coach_data['total'], $coach_id);
-            update_field('seat_layout', $coach_data['layout'], $coach_id);
-            
-            // Generate and save seat assignments
-            $seat_config = $this->generate_seats_by_layout(
-                $coach_data['total'], 
-                $coach_data['layout'], 
-                $coach_data['code']
-            );
-            
-            update_field('front_facing_seats', implode(',', $seat_config['front_facing_seats']), $coach_id);
-            update_field('back_facing_seats', implode(',', $seat_config['back_facing_seats']), $coach_id);
-        }
-        
-        return $coach_id;
+
+    return rest_ensure_response([
+      'items'=>$items,'total'=>intval($q->found_posts),'pages'=>intval($q->max_num_pages),
+      'page'=>$page,'per_page'=>$per_page,
+    ]);
+  }
+
+  /** ---------- Travel Class endpoints ---------- */
+  public function list_classes($request) {
+    $per_page = max(1, intval($request['per_page']));
+    $page     = max(1, intval($request['page']));
+    $search   = is_string($request['search']) ? trim($request['search']) : '';
+    $short    = is_string($request['short'])  ? strtoupper(trim($request['short'])) : '';
+
+    $args = [
+      'post_type'      => self::TCLASS,
+      'posts_per_page' => $per_page,
+      'paged'          => $page,
+      'orderby'        => 'title',
+      'order'          => 'ASC',
+      's'              => $search,
+      'no_found_rows'  => false,
+    ];
+
+    if ($short !== '') {
+      $args['meta_query'] = [[
+        'key'     => 'short_code',
+        'value'   => $short,
+        'compare' => '=',
+      ]];
     }
-    
-    private function create_train($train_data, $coach_ids) {
-        $train_id = wp_insert_post([
-            'post_title' => $train_data['name'],
-            'post_type' => self::TRAIN,
-            'post_status' => 'publish',
-        ]);
-        
-        if ($train_id && !is_wp_error($train_id)) {
-            update_field('train_number', $train_data['number'], $train_id);
-            update_field('reverse_train_number', $train_data['reverse'], $train_id);
-            update_field('origin_station', $train_data['origin'], $train_id);
-            update_field('destination_station', $train_data['destination'], $train_id);
-            
-            // Assign coaches to train
-            $train_coaches = [];
-            foreach ($coach_ids as $index => $coach_id) {
-                $train_coaches[] = [
-                    'coach_reference' => $coach_id,
-                    'position' => $index + 1,
-                ];
+
+    $q = new WP_Query($args);
+
+    $items = [];
+    foreach ($q->posts as $p) {
+      $items[] = [
+        'id'          => $p->ID,
+        'class_name'  => get_the_title($p->ID),
+        'class_short' => (string) get_field('short_code', $p->ID),
+        'slug'        => $p->post_name,
+      ];
+    }
+
+    return rest_ensure_response([
+      'items'    => $items,
+      'total'    => intval($q->found_posts),
+      'pages'    => intval($q->max_num_pages),
+      'page'     => $page,
+      'per_page' => $per_page,
+    ]);
+  }
+
+  public function get_class($request) {
+    $id = intval($request['id']);
+    $p  = get_post($id);
+    if (!$p || $p->post_type !== self::TCLASS) {
+      return new WP_Error('not_found', 'Class not found', ['status' => 404]);
+    }
+    return rest_ensure_response([
+      'id'          => $p->ID,
+      'class_name'  => get_the_title($p->ID),
+      'class_short' => (string) get_field('short_code', $p->ID),
+      'slug'        => $p->post_name,
+    ]);
+  }
+
+  /** ---------- Coach endpoints ---------- */
+  public function list_coaches($request) {
+    $per_page = max(1, intval($request['per_page']));
+    $page     = max(1, intval($request['page']));
+    $search   = is_string($request['search']) ? trim($request['search']) : '';
+    $code     = is_string($request['code'])   ? trim($request['code'])   : '';
+
+    $args = [
+      'post_type'      => self::COACH,
+      'posts_per_page' => $per_page,
+      'paged'          => $page,
+      'orderby'        => 'title',
+      'order'          => 'ASC',
+      's'              => $search,
+      'no_found_rows'  => false,
+    ];
+
+    if ($code !== '') {
+      $args['meta_query'] = [[
+        'key'     => 'coach_code',
+        'value'   => $code,
+        'compare' => '=',
+      ]];
+    }
+
+    $q = new WP_Query($args);
+
+    $items = [];
+    foreach ($q->posts as $p) {
+      $coach_id = $p->ID;
+      $coach_code = (string) get_field('coach_code', $coach_id);
+      $total = null;
+      $csv   = $this->compute_from_coach($coach_id, $total);
+
+      $items[] = [
+        'id'           => $coach_id,
+        'coach_code'   => $coach_code,
+        'total_seats'  => $total,
+        'front_facing' => $csv['front_csv'], // CSV strings
+        'back_facing'  => $csv['back_csv'],  // CSV strings
+        'slug'         => $p->post_name,
+      ];
+    }
+
+    return rest_ensure_response([
+      'items'=>$items,'total'=>intval($q->found_posts),'pages'=>intval($q->max_num_pages),
+      'page'=>$page,'per_page'=>$per_page,
+    ]);
+  }
+
+  public function get_coach($request) {
+    $id = intval($request['id']);
+    $p  = get_post($id);
+    if (!$p || $p->post_type !== self::COACH) {
+      return new WP_Error('not_found', 'Coach not found', ['status' => 404]);
+    }
+
+    $total = null;
+    $csv   = $this->compute_from_coach($id, $total);
+
+    return rest_ensure_response([
+      'id'           => $p->ID,
+      'coach_code'   => (string) get_field('coach_code', $p->ID),
+      'total_seats'  => $total,
+      'front_facing' => $csv['front_csv'],
+      'back_facing'  => $csv['back_csv'],
+      'slug'         => $p->post_name,
+    ]);
+  }
+
+  /** ---------- Station endpoints ---------- */
+  public function list_stations($request) {
+    $per_page = max(1, intval($request['per_page']));
+    $page     = max(1, intval($request['page']));
+    $search   = is_string($request['search']) ? trim($request['search']) : '';
+    $code     = is_string($request['code'])   ? trim($request['code'])   : '';
+
+    $args = [
+      'post_type'      => self::STATION,
+      'posts_per_page' => $per_page,
+      'paged'          => $page,
+      'orderby'        => 'title',
+      'order'          => 'ASC',
+      's'              => $search,
+      'no_found_rows'  => false,
+    ];
+
+    if ($code !== '') {
+      $args['meta_query'] = [[
+        'key'     => 'station_code',
+        'value'   => $code,
+        'compare' => '=',
+      ]];
+    }
+
+    $q = new WP_Query($args);
+
+    $items = [];
+    foreach ($q->posts as $p) {
+      $items[] = [
+        'id'    => $p->ID,
+        'title' => get_the_title($p->ID),               // mirrors code
+        'code'  => (string) get_field('station_code', $p->ID),
+        'slug'  => $p->post_name,
+      ];
+    }
+
+    return rest_ensure_response([
+      'items'=>$items,'total'=>intval($q->found_posts),'pages'=>intval($q->max_num_pages),
+      'page'=>$page,'per_page'=>$per_page,
+    ]);
+  }
+
+  public function get_station($request) {
+    $id = intval($request['id']);
+    $p  = get_post($id);
+    if (!$p || $p->post_type !== self::STATION) {
+      return new WP_Error('not_found', 'Station not found', ['status' => 404]);
+    }
+    return rest_ensure_response([
+      'id'    => $p->ID,
+      'title' => get_the_title($p->ID),
+      'code'  => (string) get_field('station_code', $p->ID),
+      'slug'  => $p->post_name,
+    ]);
+  }
+
+  /** Save hooks */
+  public function sync_routes_on_save($post_id) {
+    if (get_post_type($post_id) !== self::TRAIN) return;
+
+    $origin = intval(get_field('origin_station', $post_id));
+    $dest   = intval(get_field('destination_station', $post_id));
+    if (!$origin || !$dest) return;
+
+    // 1) Relationship picker (takes precedence if used)
+    $picked = get_field('routes_picker', $post_id);
+    if (is_array($picked) && !empty($picked)) {
+      $middle = [];
+      foreach ($picked as $sid) {
+        $sid = intval($sid);
+        if ($sid && $sid !== $origin && $sid !== $dest) $middle[] = ['station'=>$sid];
+      }
+      update_field('routes', $middle, $post_id);
+      update_field('routes_picker', [], $post_id); // clear to avoid reapplying later
+    }
+
+    // 2) CSV bulk input (if provided)
+    $csv = (string) get_field('routes_csv', $post_id);
+    if (trim($csv) !== '') {
+      $tokens = preg_split('/[,\n]+/', $csv);
+      $tokens = array_values(array_filter(array_map('trim', $tokens), fn($t) => $t !== ''));
+
+      $middle = [];
+      foreach ($tokens as $tok) {
+        $sid = $this->find_station_id_by_code_or_title($tok);
+        if ($sid && $sid !== $origin && $sid !== $dest) $middle[] = ['station'=>$sid];
+      }
+      update_field('routes', $middle, $post_id);
+      update_field('routes_csv', '', $post_id);
+    }
+
+    // 3) Ensure endpoints wrap the middle stops
+    $rows = get_field('routes', $post_id) ?: [];
+    $rows = $this->ensure_endpoints_single($rows, $origin, $dest);
+    update_field('routes', $rows, $post_id);
+  }
+
+  public function sync_station_title_on_save($post_id) {
+    if (get_post_type($post_id) !== self::STATION) return;
+    $code = trim((string) get_field('station_code', $post_id));
+    if ($code === '') return;
+    $p = get_post($post_id); if (!$p) return;
+    if ($p->post_title !== $code) {
+      wp_update_post(['ID'=>$post_id,'post_title'=>$code,'post_name'=>sanitize_title($code)]);
+    }
+  }
+
+  public function sync_coach_title_on_save($post_id) {
+    if (get_post_type($post_id) !== self::COACH) return;
+    $code = trim((string) get_field('coach_code', $post_id));
+    if ($code === '') return;
+    $p = get_post($post_id); if (!$p) return;
+    if ($p->post_title !== $code) {
+      wp_update_post(['ID'=>$post_id,'post_title'=>$code,'post_name'=>sanitize_title($code)]);
+    }
+  }
+
+  public function sync_tclass_short_normalize($post_id) {
+    if (get_post_type($post_id) !== self::TCLASS) return;
+    $short = get_field('short_code', $post_id);
+    if (is_string($short) && $short !== '') {
+      $short_up = strtoupper(trim($short));
+      if ($short_up !== $short) update_field('short_code', $short_up, $post_id);
+    }
+  }
+
+  /** ---------- Helpers ---------- */
+
+  private function ensure_endpoints_single($rows, $startId, $endId) {
+    $rows = is_array($rows) ? array_values($rows) : [];
+    $filtered = [];
+    foreach ($rows as $r) {
+      $sid = intval($r['station'] ?? 0);
+      if ($sid === $startId || $sid === $endId) continue;
+      $filtered[] = ['station'=>$sid];
+    }
+    array_unshift($filtered, ['station'=>$startId]);
+    $filtered[] = ['station'=>$endId];
+    return $filtered;
+  }
+
+  private function build_direction($rows, $dir = 'forward') {
+    if (!$rows || !is_array($rows)) return [];
+    $seq = ($dir === 'reverse') ? array_reverse($rows) : $rows;
+    $out = [];
+    foreach ($seq as $row) {
+      $sid = intval($row['station'] ?? 0);
+      if (!$sid) continue;
+      $out[] = [
+        'station' => [
+          'id'    => $sid,
+          'title' => get_the_title($sid),
+          'code'  => get_field('station_code', $sid),
+        ],
+      ];
+    }
+    return $out;
+  }
+
+  private function find_station_id_by_code_or_title($token) {
+    $token = trim($token);
+    if ($token === '') return 0;
+    // by station_code
+    $q = get_posts([
+      'post_type' => self::STATION,
+      'posts_per_page' => 1,
+      'fields' => 'ids',
+      'meta_query' => [[ 'key'=>'station_code','value'=>$token,'compare'=>'=' ]],
+    ]);
+    if (!empty($q)) return intval($q[0]);
+    // by title
+    $p = get_page_by_title($token, OBJECT, self::STATION);
+    return $p ? intval($p->ID) : 0;
+  }
+
+  /** Seats helpers */
+  private function clamp($n, $min, $max) { return max($min, min($max, $n)); }
+  private function range_list($start, $end) {
+    $start = intval($start); $end = intval($end);
+    if ($start <= 0 || $end <= 0) return [];
+    if ($end < $start) [$start,$end] = [$end,$start];
+    return range($start, $end);
+  }
+  private function list_to_csv($arr) {
+    $arr = array_values(array_unique(array_map('intval', $arr)));
+    sort($arr, SORT_NUMERIC);
+    return implode(',', $arr);
+  }
+
+  /** Compute seats from a COACH post (template) */
+  private function compute_from_coach($coach_id, &$out_total = null) {
+    $coach_id = intval($coach_id);
+    if (!$coach_id) return ['front_csv'=>'','back_csv'=>''];
+    $total = intval(get_field('total_seats', $coach_id));
+    $out_total = $total ?: null;
+    if ($total <= 0) return ['front_csv'=>'','back_csv'=>''];
+
+    $fs = intval(get_field('front_start', $coach_id));
+    $fe = intval(get_field('front_end', $coach_id));
+    $front = ($fs && $fe) ? $this->range_list($this->clamp($fs,1,$total), $this->clamp($fe,1,$total)) : [];
+
+    $bs = intval(get_field('back_start', $coach_id));
+    $be = intval(get_field('back_end', $coach_id));
+    $auto = !empty(get_field('auto_back_fill', $coach_id));
+
+    if ($bs && $be) {
+      $back = $this->range_list($this->clamp($bs,1,$total), $this->clamp($be,1,$total));
+    } else {
+      $back = $auto ? array_values(array_diff(range(1,$total), $front)) : [];
+    }
+
+    return ['front_csv'=>$this->list_to_csv($front),'back_csv'=>$this->list_to_csv($back)];
+  }
+
+  /** Compute seats from Travel Class defaults */
+  private function compute_from_tclass($class_id, &$out_total = null) {
+    $class_id = intval($class_id);
+    if (!$class_id) return ['front_csv'=>'','back_csv'=>''];
+    $total = intval(get_field('default_total_seats', $class_id));
+    $out_total = $total ?: null;
+    if ($total <= 0) return ['front_csv'=>'','back_csv'=>''];
+
+    $fs = intval(get_field('default_front_start', $class_id));
+    $fe = intval(get_field('default_front_end', $class_id));
+    $front = ($fs && $fe) ? $this->range_list($this->clamp($fs,1,$total), $this->clamp($fe,1,$total)) : [];
+
+    $bs = intval(get_field('default_back_start', $class_id));
+    $be = intval(get_field('default_back_end', $class_id));
+    $auto = !empty(get_field('default_auto_back_fill', $class_id));
+
+    if ($bs && $be) {
+      $back = $this->range_list($this->clamp($bs,1,$total), $this->clamp($be,1,$total));
+    } else {
+      $back = $auto ? array_values(array_diff(range(1,$total), $front)) : [];
+    }
+
+    return ['front_csv'=>$this->list_to_csv($front),'back_csv'=>$this->list_to_csv($back)];
+  }
+
+  /** Compute seats from train-level override fields */
+  private function compute_from_override($row) {
+    $total = isset($row['total_seats']) ? intval($row['total_seats']) : 0;
+    if ($total <= 0) return ['front_csv'=>'','back_csv'=>'','total'=>null];
+
+    $fs = $this->clamp(intval($row['front_start'] ?? 0), 1, $total);
+    $fe = $this->clamp(intval($row['front_end'] ?? 0),   1, $total);
+    $front = ($fs && $fe) ? $this->range_list($fs, $fe) : [];
+
+    $bs = intval($row['back_start'] ?? 0);
+    $be = intval($row['back_end'] ?? 0);
+    $auto = !empty($row['auto_back_fill']);
+
+    if ($bs && $be) {
+      $back = $this->range_list($this->clamp($bs,1,$total), $this->clamp($be,1,$total));
+    } else {
+      $back = $auto ? array_values(array_diff(range(1,$total), $front)) : [];
+    }
+
+    return ['front_csv'=>$this->list_to_csv($front),'back_csv'=>$this->list_to_csv($back),'total'=>$total];
+  }
+
+  /** Build classes array with CSV seats, honoring precedence: override > coach > class */
+  private function format_classes_csv($rows) {
+    if (!$rows || !is_array($rows)) return [];
+    $classes = [];
+    foreach ($rows as $classRow) {
+      $class_id = intval($classRow['class_ref'] ?? 0);
+      $class_name  = $class_id ? get_the_title($class_id) : '';
+      $class_short = $class_id ? (string) get_field('short_code', $class_id) : '';
+
+      $coachesOut = [];
+      if (!empty($classRow['coaches']) && is_array($classRow['coaches'])) {
+        foreach ($classRow['coaches'] as $coachRow) {
+          $coach_id = intval($coachRow['coach_ref'] ?? 0);
+          $coach_code = $coach_id ? (string) get_field('coach_code', $coach_id) : '';
+
+          // Seats: override > coach template > travel class defaults
+          if (!empty($coachRow['override_seats'])) {
+            $calc = $this->compute_from_override($coachRow);
+            $total = $calc['total'];
+          } else {
+            $calc = $this->compute_from_coach($coach_id, $total);
+            if ((!$calc['front_csv'] && !$calc['back_csv']) || !$total) {
+              $calc = $this->compute_from_tclass($class_id, $total);
             }
-            update_field('train_coaches', $train_coaches, $train_id);
+          }
+
+          $coachesOut[] = [
+            'coach_id'     => $coach_id ?: null,
+            'coach_code'   => $coach_code,
+            'total_seats'  => $total ?: null,
+            'front_facing' => $calc['front_csv'], // CSV strings
+            'back_facing'  => $calc['back_csv'],  // CSV strings
+          ];
         }
-        
-        return $train_id;
+      }
+
+      $classes[] = [
+        'class_id'    => $class_id ?: null,
+        'class_short' => $class_short,
+        'class_name'  => $class_name,
+        'coaches'     => $coachesOut,
+      ];
     }
+    return $classes;
+  }
+
+  private function reverse_classes_csv($rows) {
+    $normal = $this->format_classes_csv($rows);
+    $reverse = [];
+    foreach ($normal as $cls) {
+      $revCoaches = [];
+      foreach ($cls['coaches'] as $c) {
+        $revCoaches[] = [
+          'coach_id'     => $c['coach_id'],
+          'coach_code'   => $c['coach_code'],
+          'total_seats'  => $c['total_seats'],
+          'front_facing' => $c['back_facing'],
+          'back_facing'  => $c['front_facing'],
+        ];
+      }
+      $reverse[] = [
+        'class_id'    => $cls['class_id'],
+        'class_short' => $cls['class_short'],
+        'class_name'  => $cls['class_name'],
+        'coaches'     => $revCoaches
+      ];
+    }
+    return $reverse;
+  }
 }
 
-// Initialize the plugin
-new BD_Railway_Seat_Guide();
+new BD_Railway_Headless_WithCoachClass();
