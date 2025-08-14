@@ -2,7 +2,7 @@ import { TrainDirectionSearch } from "@/components/train-direction-search"
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
       {/* Header Section */}
       <div className="bg-white border-b border-gray-200">
         <div className="container mx-auto px-4 py-4">

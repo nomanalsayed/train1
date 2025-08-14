@@ -4,6 +4,7 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 interface SeatMapProps {
   coach: {
@@ -20,9 +21,20 @@ interface SeatMapProps {
     from: string
     to: string
   }
+  allCoaches?: any[]
+  onCoachChange?: (coachCode: string) => void
 }
 
-export default function SeatMapVisual({ coach, trainName, route }: SeatMapProps) {
+export default function SeatMapVisual({ coach, trainName, route, allCoaches = [], onCoachChange }: SeatMapProps) {
+  const router = useRouter()
+
+  const handleBack = () => {
+    router.back()
+  }
+
+  const handleDone = () => {
+    router.push('/')
+  }
   
   const renderSeatGrid = (seats: number[], bgColor: string, label: string) => {
     if (!seats || seats.length === 0) return null
@@ -73,10 +85,10 @@ export default function SeatMapVisual({ coach, trainName, route }: SeatMapProps)
     }
 
     return (
-      <div className={`${bgColor === 'bg-emerald-500' ? 'bg-emerald-50' : 'bg-orange-50'} p-6 rounded-xl relative border-2 ${bgColor === 'bg-emerald-500' ? 'border-emerald-200' : 'border-orange-200'}`}>
+      <div className={`${bgColor === 'bg-orange-500' ? 'bg-orange-50' : 'bg-emerald-50'} p-6 rounded-xl relative border-2 ${bgColor === 'bg-orange-500' ? 'border-orange-200' : 'border-emerald-200'}`}>
         {/* Direction label */}
         <div className="absolute top-2 right-2">
-          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${bgColor === 'bg-emerald-500' ? 'bg-emerald-200 text-emerald-800' : 'bg-orange-200 text-orange-800'}`}>
+          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${bgColor === 'bg-orange-500' ? 'bg-orange-200 text-orange-800' : 'bg-emerald-200 text-emerald-800'}`}>
             {label} Facing
           </span>
         </div>
@@ -103,6 +115,7 @@ export default function SeatMapVisual({ coach, trainName, route }: SeatMapProps)
     // Handle seat layout data structure
     const frontSeats: number[] = []
     const backSeats: number[] = []
+    const allSeats: {number: number, type: string}[] = []
 
     // Check if seat_layout is an array of seat objects or nested arrays
     if (Array.isArray(coach.seat_layout)) {
@@ -111,23 +124,33 @@ export default function SeatMapVisual({ coach, trainName, route }: SeatMapProps)
           // Nested array structure
           item.forEach(seat => {
             if (typeof seat === 'object' && seat !== null) {
-              if (seat.color === 'green' || seat.type === 'front_facing') {
-                frontSeats.push(seat.number || seat.seat_number)
-              } else {
-                backSeats.push(seat.number || seat.seat_number)
-              }
+              allSeats.push({
+                number: seat.number || seat.seat_number,
+                type: seat.color === 'green' || seat.type === 'front_facing' ? 'front_facing' : 'back_facing'
+              })
             }
           })
         } else if (typeof item === 'object' && item !== null) {
           // Direct object structure
-          if (item.color === 'green' || item.type === 'front_facing') {
-            frontSeats.push(item.number || item.seat_number)
-          } else {
-            backSeats.push(item.number || item.seat_number)
-          }
+          allSeats.push({
+            number: item.number || item.seat_number,
+            type: item.color === 'green' || item.type === 'front_facing' ? 'front_facing' : 'back_facing'
+          })
         }
       })
     }
+
+    // Sort all seats by number to maintain sequential order
+    allSeats.sort((a, b) => a.number - b.number)
+
+    // Separate into groups while maintaining order
+    allSeats.forEach(seat => {
+      if (seat.type === 'front_facing') {
+        frontSeats.push(seat.number)
+      } else {
+        backSeats.push(seat.number)
+      }
+    })
 
     // If no seats found in layout, generate default
     if (frontSeats.length === 0 && backSeats.length === 0) {
@@ -139,17 +162,35 @@ export default function SeatMapVisual({ coach, trainName, route }: SeatMapProps)
       return renderDefaultLayout(defaultFrontSeats, defaultBackSeats)
     }
 
-    // Sort seats
-    frontSeats.sort((a, b) => a - b)
-    backSeats.sort((a, b) => a - b)
+    // Render sections sequentially based on seat numbers
+    const sections = []
+    
+    if (backSeats.length > 0) {
+      sections.push({
+        seats: backSeats,
+        color: 'bg-orange-500', // Swapped: back-facing is now orange
+        label: 'Backward',
+        minSeat: Math.min(...backSeats)
+      })
+    }
+    
+    if (frontSeats.length > 0) {
+      sections.push({
+        seats: frontSeats,
+        color: 'bg-emerald-500', // Swapped: front-facing is now emerald
+        label: 'Forward',
+        minSeat: Math.min(...frontSeats)
+      })
+    }
+
+    // Sort sections by minimum seat number to maintain sequential order
+    sections.sort((a, b) => a.minSeat - b.minSeat)
 
     return (
       <div className="space-y-6">
-        {/* Front-facing seats (emerald green) */}
-        {frontSeats.length > 0 && renderSeatGrid(frontSeats, 'bg-emerald-500', 'Forward')}
-        
-        {/* Back-facing seats (orange) */}
-        {backSeats.length > 0 && renderSeatGrid(backSeats, 'bg-orange-500', 'Backward')}
+        {sections.map((section, index) => 
+          renderSeatGrid(section.seats, section.color, section.label)
+        )}
       </div>
     )
   }
@@ -157,11 +198,11 @@ export default function SeatMapVisual({ coach, trainName, route }: SeatMapProps)
   const renderDefaultLayout = (frontSeats: number[], backSeats: number[]) => {
     return (
       <div className="space-y-6">
-        {/* Front-facing seats */}
-        {frontSeats.length > 0 && renderSeatGrid(frontSeats, 'bg-emerald-500', 'Forward')}
-        
-        {/* Back-facing seats */}
+        {/* Back-facing seats first (orange) */}
         {backSeats.length > 0 && renderSeatGrid(backSeats, 'bg-orange-500', 'Backward')}
+        
+        {/* Front-facing seats second (emerald) */}
+        {frontSeats.length > 0 && renderSeatGrid(frontSeats, 'bg-emerald-500', 'Forward')}
       </div>
     )
   }
@@ -171,7 +212,10 @@ export default function SeatMapVisual({ coach, trainName, route }: SeatMapProps)
       {/* Header */}
       <div className="bg-white shadow-sm border-b p-4 sticky top-0 z-10">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
-          <button className="text-gray-600 hover:text-gray-800 p-2 rounded-lg hover:bg-gray-100 transition-colors">
+          <button 
+            onClick={handleBack}
+            className="text-gray-600 hover:text-gray-800 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          >
             <ArrowLeft className="w-6 h-6" />
           </button>
           <div className="text-center">
@@ -180,7 +224,10 @@ export default function SeatMapVisual({ coach, trainName, route }: SeatMapProps)
             </h1>
             <p className="text-sm text-gray-500">Coach {coach.coach_code}</p>
           </div>
-          <button className="text-emerald-600 hover:text-emerald-700 text-sm font-medium px-3 py-1 rounded-lg hover:bg-emerald-50 transition-colors">
+          <button 
+            onClick={handleDone}
+            className="text-emerald-600 hover:text-emerald-700 text-sm font-medium px-3 py-1 rounded-lg hover:bg-emerald-50 transition-colors"
+          >
             Done
           </button>
         </div>
@@ -221,18 +268,41 @@ export default function SeatMapVisual({ coach, trainName, route }: SeatMapProps)
           </div>
         </div>
 
+        {/* Coach Selection */}
+        {allCoaches && allCoaches.length > 1 && (
+          <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Select Coach</h3>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+              {allCoaches.map((coachOption) => (
+                <button
+                  key={coachOption.coach_code}
+                  onClick={() => onCoachChange && onCoachChange(coachOption.coach_code)}
+                  className={`p-3 rounded-lg border-2 transition-colors ${
+                    coach.coach_code === coachOption.coach_code
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-300 hover:bg-emerald-50'
+                  }`}
+                >
+                  <div className="font-semibold">{coachOption.coach_code}</div>
+                  <div className="text-xs text-gray-500 mt-1">{coachOption.total_seats} seats</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Seat map */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-gray-800">Seat Layout</h3>
             <div className="flex items-center space-x-4 text-sm">
               <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-emerald-500 rounded"></div>
-                <span className="text-gray-600">Forward</span>
-              </div>
-              <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-orange-500 rounded"></div>
                 <span className="text-gray-600">Backward</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-emerald-500 rounded"></div>
+                <span className="text-gray-600">Forward</span>
               </div>
             </div>
           </div>

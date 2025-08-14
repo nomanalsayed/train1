@@ -378,6 +378,16 @@ export default function SeatMapPage({
   const coachToDisplayFinal = selectedCoach || allCoaches[0];
 
 
+  const handleCoachChange = (coachCode: string) => {
+    const params = new URLSearchParams()
+    if (resolvedSearchParams.from) params.set('from', resolvedSearchParams.from)
+    if (resolvedSearchParams.to) params.set('to', resolvedSearchParams.to)
+    if (resolvedSearchParams.trainName) params.set('trainName', resolvedSearchParams.trainName)
+    params.set('coach', coachCode)
+    
+    router.push(`/trains/${resolvedParams.trainId}/seats?${params.toString()}`)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 p-4 md:p-8">
       <SeatMapVisual
@@ -387,6 +397,8 @@ export default function SeatMapPage({
           from: resolvedSearchParams.from || trainData.from_station || "Unknown",
           to: resolvedSearchParams.to || trainData.to_station || "Unknown",
         }}
+        allCoaches={allCoaches}
+        onCoachChange={handleCoachChange}
       />
     </div>
   );
