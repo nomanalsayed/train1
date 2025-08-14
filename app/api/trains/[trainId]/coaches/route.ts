@@ -128,6 +128,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       trainName: data.train_name,
       trainNumber: data.train_number,
       count: transformedCoaches.length,
+      fallback: false,
     })
   } catch (error) {
     console.error("[Next.js API] Error fetching train coaches:", error)
