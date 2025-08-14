@@ -1,21 +1,22 @@
+
 "use client";
 
 import { SeatDirectionViewer } from "@/components/seat-direction-viewer";
 import { Button } from "@/components/ui/button";
 import { Home, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     trainId: string;
-  };
-  searchParams: {
+  }>;
+  searchParams: Promise<{
     from?: string;
     to?: string;
     trainName?: string;
     coach?: string;
-  };
+  }>;
 }
 
 interface TrainData {
@@ -44,16 +45,9 @@ export default function SeatMapPage({ params, searchParams }: PageProps) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  // Resolve params and searchParams to ensure they are always defined
-  const resolvedParams = {
-    trainId: params?.trainId || "undefined",
-  };
-  const resolvedSearchParams = {
-    from: searchParams?.from || undefined,
-    to: searchParams?.to || undefined,
-    trainName: searchParams?.trainName || undefined,
-    coach: searchParams?.coach || undefined,
-  };
+  // Unwrap async params and searchParams
+  const resolvedParams = use(params);
+  const resolvedSearchParams = use(searchParams);
 
   useEffect(() => {
     async function fetchTrainData() {
@@ -95,7 +89,7 @@ export default function SeatMapPage({ params, searchParams }: PageProps) {
     }
   }, [resolvedParams, resolvedSearchParams]);
 
-  if (!resolvedParams || !resolvedSearchParams || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">

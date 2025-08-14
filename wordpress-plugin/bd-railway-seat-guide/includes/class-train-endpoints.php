@@ -589,21 +589,59 @@ class BD_Railway_Train_Endpoints {
             return new WP_Error('missing_route_code', 'Route code is required', ['status' => 400]);
         }
 
-        // Search for trains by route code
-        $meta_key = ($direction === 'reverse') ? 'code_to_from' : 'code_from_to';
-        
-        $trains = get_posts([
-            'post_type' => $this->parent::TRAIN,
-            'meta_query' => [
-                [
-                    'key' => $meta_key,
-                    'value' => $route_code,
-                    'compare' => '=',
+        // Convert route code format (e.g., DHAKA_TO_PANCHAGARH -> search by station names)
+        if (strpos($route_code, '_TO_') !== false) {
+            $parts = explode('_TO_', $route_code);
+            if (count($parts) === 2) {
+                $from_station = trim($parts[0]);
+                $to_station = trim($parts[1]);
+                
+                // Find trains by station names rather than stored route codes
+                $trains = get_posts([
+                    'post_type' => $this->parent::TRAIN,
+                    'posts_per_page' => -1,
+                    'post_status' => 'publish',
+                ]);
+                
+                $matching_trains = [];
+                foreach ($trains as $train) {
+                    $origin_id = intval(get_field('origin_station', $train->ID));
+                    $dest_id = intval(get_field('destination_station', $train->ID));
+                    $origin_name = $origin_id ? strtoupper(get_the_title($origin_id)) : '';
+                    $dest_name = $dest_id ? strtoupper(get_the_title($dest_id)) : '';
+                    
+                    // Check both directions
+                    if (($origin_name === $from_station && $dest_name === $to_station) ||
+                        ($origin_name === $to_station && $dest_name === $from_station)) {
+                        $matching_trains[] = $train;
+                    }
+                }
+                
+                if (!empty($matching_trains)) {
+                    $trains = [$matching_trains[0]]; // Take the first match
+                } else {
+                    $trains = [];
+                }
+            } else {
+                $trains = [];
+            }
+        } else {
+            // Search for trains by route code as stored
+            $meta_key = ($direction === 'reverse') ? 'code_to_from' : 'code_from_to';
+            
+            $trains = get_posts([
+                'post_type' => $this->parent::TRAIN,
+                'meta_query' => [
+                    [
+                        'key' => $meta_key,
+                        'value' => $route_code,
+                        'compare' => '=',
+                    ],
                 ],
-            ],
-            'posts_per_page' => 1,
-            'post_status' => 'publish',
-        ]);
+                'posts_per_page' => 1,
+                'post_status' => 'publish',
+            ]);
+        }
 
         if (empty($trains)) {
             return new WP_Error('train_not_found', 'No train found for this route code', ['status' => 404]);
