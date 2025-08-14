@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowUp, ArrowDown, Users, Train, AlertCircle, CheckCircle, Home } from 'lucide-react'
 
 import { useRouter } from 'next/navigation'
+import { SeatMapVisual } from './seat-map-visual'
 
 interface SeatDirectionViewerProps {
   trainId: string
@@ -27,6 +28,9 @@ interface Coach {
   backFacingSeats: number[]
   frontFacingCount: number
   backFacingCount: number
+  seatLayout?: { seatNumber: string; isOccupied: boolean; facing: 'forward' | 'backward' }[];
+  direction?: 'forward' | 'backward';
+  routeCode?: string;
 }
 
 export function SeatDirectionViewer({ 
@@ -51,8 +55,15 @@ export function SeatDirectionViewer({
 
         console.log('Fetching coaches from API...')
 
-        // Try to get coaches from the train coaches API endpoint
-        const response = await fetch(`/api/trains/${trainId}/coaches`)
+        // Construct the route code from 'from' and 'to' if available
+        const routeCode = (from && to) ? `${from.toUpperCase()}→${to.toUpperCase()}` : null;
+
+        // Fetch coaches based on trainId and routeCode
+        const apiUrl = routeCode 
+          ? `/api/trains/${trainId}/route/${encodeURIComponent(routeCode)}/coaches`
+          : `/api/trains/${trainId}/coaches`;
+
+        const response = await fetch(apiUrl);
 
         console.log('Coaches API response status:', response.status)
 
@@ -79,7 +90,7 @@ export function SeatDirectionViewer({
       setLoading(false)
       setError('Train ID is missing')
     }
-  }, [trainId])
+  }, [trainId, from, to]) // Add from and to as dependencies
 
   const getSeatDirection = (coach: Coach) => {
     const frontCount = coach.frontFacingCount || coach.frontFacingSeats?.length || 0
@@ -290,33 +301,56 @@ export function SeatDirectionViewer({
                       </div>
                     )}
 
-                    {direction === 'mixed' && (
-                      <div className="p-4 bg-muted/50 rounded-lg">
-                        <h4 className="font-medium mb-2">Seat Distribution:</h4>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div className="flex items-center gap-2">
-                            <ArrowUp className="h-4 w-4 text-green-600" />
-                            <span>Forward: {frontCount} seats</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <ArrowDown className="h-4 w-4 text-red-600" />
-                            <span>Backward: {backCount} seats</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    {coach.seatLayout && coach.seatLayout.length > 0 ? (
+                      <SeatMapVisual 
+                        seatLayout={coach.seatLayout}
+                        coachCode={coach.code}
+                        direction={coach.direction || 'forward'}
+                        routeCode={coach.routeCode}
+                      />
+                    ) : (
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-emerald-700">Front-Facing Seats</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid grid-cols-10 gap-1">
+                              {(coach.frontFacingSeats || []).map((seatNum) => (
+                                <div
+                                  key={seatNum}
+                                  className="w-8 h-8 bg-emerald-100 border border-emerald-300 rounded text-xs flex items-center justify-center font-medium text-emerald-800"
+                                >
+                                  {seatNum}
+                                </div>
+                              ))}
+                            </div>
+                            <p className="text-sm text-gray-600 mt-2">
+                              {coach.frontFacingCount || 0} seats facing direction of travel
+                            </p>
+                          </CardContent>
+                        </Card>
 
-                    {direction === 'forward' && (
-                      <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
-                        <CheckCircle className="h-4 w-4" />
-                        <span>All {frontCount} seats face forward - Great choice for comfortable travel!</span>
-                      </div>
-                    )}
-
-                    {direction === 'backward' && (
-                      <div className="flex items-center gap-2 text-sm text-red-700 dark:text-red-400">
-                        <AlertCircle className="h-4 w-4" />
-                        <span>All {backCount} seats face backward</span>
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-gray-700">Back-Facing Seats</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid grid-cols-10 gap-1">
+                              {(coach.backFacingSeats || []).map((seatNum) => (
+                                <div
+                                  key={seatNum}
+                                  className="w-8 h-8 bg-gray-100 border border-gray-300 rounded text-xs flex items-center justify-center font-medium text-gray-800"
+                                >
+                                  {seatNum}
+                                </div>
+                              ))}
+                            </div>
+                            <p className="text-sm text-gray-600 mt-2">
+                              {coach.backFacingCount || 0} seats facing opposite to direction of travel
+                            </p>
+                          </CardContent>
+                        </Card>
                       </div>
                     )}
                   </div>

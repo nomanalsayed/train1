@@ -64,6 +64,11 @@ class BD_Railway_Train_Endpoints {
             'methods' => 'GET',
             'callback' => [$this, 'get_train_seats'],
             'permission_callback' => '__return_true',
+            'args' => [
+                'from' => ['default' => '', 'sanitize_callback' => 'sanitize_text_field'],
+                'to' => ['default' => '', 'sanitize_callback' => 'sanitize_text_field'],
+                'coach' => ['default' => '', 'sanitize_callback' => 'sanitize_text_field'],
+            ],
         ]);
     }
 
@@ -372,10 +377,156 @@ class BD_Railway_Train_Endpoints {
     }
 
     /**
-     * Get train seats (same as coaches but with different endpoint name)
+     * Get train seats with route-based direction support
      */
     public function get_train_seats($request) {
-        return $this->get_train_coaches($request);
+        $train_id = intval($request['train_id']);
+        $from_station = trim($request['from']);
+        $to_station = trim($request['to']);
+        $filter_coach = trim($request['coach']);
+
+        $train = get_post($train_id);
+        if (!$train || $train->post_type !== $this->parent::TRAIN) {
+            return new WP_Error('train_not_found', 'Train not found', array('status' => 404));
+        }
+
+        // Get train route information
+        $origin_station = get_field('origin_station', $train_id);
+        $dest_station = get_field('destination_station', $train_id);
+        $origin_name = $origin_station ? get_the_title($origin_station) : '';
+        $dest_name = $dest_station ? get_the_title($dest_station) : '';
+
+        // Determine direction based on route
+        $is_reverse_direction = false;
+        if (!empty($from_station) && !empty($to_station)) {
+            // Check if this matches the reverse direction
+            if (strcasecmp($from_station, $dest_name) === 0 && strcasecmp($to_station, $origin_name) === 0) {
+                $is_reverse_direction = true;
+            }
+        }
+
+        // Get train classes and extract coaches
+        $train_classes = get_field('train_classes', $train_id) ?: [];
+        $coaches = array();
+        $position = 1;
+
+        foreach ($train_classes as $class_data) {
+            $class_id = intval($class_data['class_ref']);
+            $class_name = $class_id ? get_the_title($class_id) : '';
+            $class_short = $class_id ? get_field('short_code', $class_id) : '';
+
+            if (!empty($class_data['coaches']) && is_array($class_data['coaches'])) {
+                foreach ($class_data['coaches'] as $coach_data) {
+                    $coach_id = intval($coach_data['coach_ref']);
+                    if ($coach_id) {
+                        $coach_code = get_field('coach_code', $coach_id);
+                        
+                        // Filter by coach if specified
+                        if (!empty($filter_coach) && strcasecmp($coach_code, $filter_coach) !== 0) {
+                            continue;
+                        }
+
+                        $seat_config = $this->get_seat_layout_for_direction($coach_id, $is_reverse_direction);
+                        
+                        $coaches[] = array(
+                            'coach_id' => $coach_id,
+                            'coach_code' => $coach_code,
+                            'type' => $class_short,
+                            'class_name' => $class_name,
+                            'total_seats' => $seat_config['total_seats'],
+                            'position' => $position,
+                            'seat_layout' => $seat_config['seat_layout'],
+                            'direction' => $is_reverse_direction ? 'reverse' : 'forward',
+                            'route_code' => $is_reverse_direction ? 
+                                get_field('code_to_from', $train_id) : 
+                                get_field('code_from_to', $train_id),
+                        );
+                        $position++;
+                    }
+                }
+            }
+        }
+
+        return array(
+            'coaches' => $coaches,
+            'train_id' => $train_id,
+            'train_name' => $train->post_title,
+            'train_number' => get_field('train_number', $train_id),
+            'direction' => $is_reverse_direction ? 'reverse' : 'forward',
+            'route' => array(
+                'from' => $is_reverse_direction ? $dest_name : $origin_name,
+                'to' => $is_reverse_direction ? $origin_name : $dest_name,
+                'code' => $is_reverse_direction ? 
+                    get_field('code_to_from', $train_id) : 
+                    get_field('code_from_to', $train_id),
+            ),
+            'count' => count($coaches)
+        );
+    }
+
+    /**
+     * Generate seat layout based on direction (forward vs reverse)
+     */
+    private function get_seat_layout_for_direction($coach_id, $is_reverse = false) {
+        $total_seats = intval(get_field('total_seats', $coach_id)) ?: 50;
+        
+        // Generate seat layout with 5 seats per row, 10 rows each section
+        $layout = array();
+        
+        if ($is_reverse) {
+            // B to A direction - seats face backwards (green seats on right, gray on left)
+            for ($row = 0; $row < 10; $row++) {
+                $row_seats = array();
+                // Gray seats (right side in reverse)
+                for ($col = 0; $col < 5; $col++) {
+                    $seat_num = ($row * 5) + $col + 26; // 26-50 gray
+                    $row_seats[] = array(
+                        'number' => $seat_num,
+                        'type' => 'back_facing',
+                        'color' => 'gray'
+                    );
+                }
+                // Green seats (left side in reverse) - reversed numbering
+                for ($col = 4; $col >= 0; $col--) {
+                    $seat_num = ((9 - $row) * 5) + $col + 1; // 25-1 green (reversed)
+                    $row_seats[] = array(
+                        'number' => $seat_num,
+                        'type' => 'front_facing',
+                        'color' => 'green'
+                    );
+                }
+                $layout[] = $row_seats;
+            }
+        } else {
+            // A to B direction - seats face forward (green seats on left, gray on right)
+            for ($row = 0; $row < 10; $row++) {
+                $row_seats = array();
+                // Green seats (left side)
+                for ($col = 0; $col < 5; $col++) {
+                    $seat_num = ($row * 5) + $col + 1; // 1-25 green
+                    $row_seats[] = array(
+                        'number' => $seat_num,
+                        'type' => 'front_facing',
+                        'color' => 'green'
+                    );
+                }
+                // Gray seats (right side)
+                for ($col = 0; $col < 5; $col++) {
+                    $seat_num = ((9 - $row) * 5) + (4 - $col) + 26; // 50-26 gray (reversed)
+                    $row_seats[] = array(
+                        'number' => $seat_num,
+                        'type' => 'back_facing',
+                        'color' => 'gray'
+                    );
+                }
+                $layout[] = $row_seats;
+            }
+        }
+
+        return array(
+            'total_seats' => $total_seats,
+            'seat_layout' => $layout
+        );
     }
 
     /**

@@ -1,4 +1,3 @@
-
 import { type NextRequest, NextResponse } from "next/server"
 import { API_CONFIG } from "@/lib/config"
 
@@ -6,16 +5,24 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const resolvedParams = await params
     const trainId = resolvedParams.trainId
+    const { searchParams } = new URL(request.url)
+    const from = searchParams.get('from')
+    const to = searchParams.get('to')
+    const coach = searchParams.get('coach')
 
-    console.log(`[Next.js API] Fetching seats for train ${trainId}`)
+    console.log(`[Next.js API] Fetching seats for train ${trainId}`, { from, to, coach })
 
-    const wpUrl = `${API_CONFIG.RAIL_BASE_URL}/trains/${trainId}/seats`
-    console.log(`[Next.js API] WordPress API URL: ${wpUrl}`)
+    const wpUrl = new URL(`${API_CONFIG.RAIL_BASE_URL}/trains/${trainId}/seats`)
+    if (from) wpUrl.searchParams.set('from', from)
+    if (to) wpUrl.searchParams.set('to', to)
+    if (coach) wpUrl.searchParams.set('coach', coach)
+
+    console.log(`[Next.js API] WordPress API URL: ${wpUrl.toString()}`)
 
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 10000)
 
-    const response = await fetch(wpUrl, {
+    const response = await fetch(wpUrl.toString(), {
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
@@ -29,7 +36,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!response.ok) {
       const errorText = await response.text()
       console.error(`[Next.js API] WordPress API error: ${response.status}`, errorText)
-      
+
       // If train not found, provide fallback sample seats
       if (response.status === 404) {
         console.log(`[Next.js API] Train ${trainId} not found in WordPress, providing fallback seats`)
@@ -49,7 +56,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           {
             id: 2,
             code: "SCHA",
-            name: "SCHA", 
+            name: "SCHA",
             type: "S_CHAIR",
             totalSeats: 60,
             position: 2,
@@ -62,7 +69,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             id: 3,
             code: "UMA",
             name: "UMA",
-            type: "S_CHAIR", 
+            type: "S_CHAIR",
             totalSeats: 48,
             position: 3,
             frontFacingSeats: Array.from({length: 48}, (_, i) => i + 1),
@@ -71,7 +78,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             backFacingCount: 0,
           }
         ]
-        
+
         return NextResponse.json({
           coaches: fallbackSeats,
           trainId,
@@ -81,7 +88,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           fallback: true,
         })
       }
-      
+
       return NextResponse.json(
         {
           error: "Failed to fetch train seats",
@@ -121,6 +128,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     })
   } catch (error) {
     console.error("[Next.js API] Error fetching train seats:", error)
+    let trainId = 'unknown'; // Initialize trainId
+    try {
+      const resolvedParams = await params; // Attempt to resolve params again
+      trainId = resolvedParams.trainId;
+    } catch (e) {
+      console.error("[Next.js API] Could not resolve trainId in catch block:", e);
+    }
     return NextResponse.json(
       {
         error: "Failed to fetch train seats",
