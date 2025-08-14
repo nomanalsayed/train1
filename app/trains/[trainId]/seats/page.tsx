@@ -5,20 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Home, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { use } from "react";
 
 // Import the actual SeatMapVisual component
 import SeatMapVisual from "@/components/seat-map-visual";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     trainId: string;
-  };
-  searchParams: {
+  }>;
+  searchParams: Promise<{
     from?: string;
     to?: string;
     trainName?: string;
     coach?: string;
-  };
+  }>;
 }
 
 interface CoachData {
@@ -44,6 +45,7 @@ interface TrainData {
   coaches: CoachData[];
   routes?: any[];
   train_classes?: any[];
+  classes?: any[];
 }
 
 export default function SeatMapPage({ params, searchParams }: PageProps) {
@@ -52,24 +54,28 @@ export default function SeatMapPage({ params, searchParams }: PageProps) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  // Unwrap the promises
+  const resolvedParams = use(params);
+  const resolvedSearchParams = use(searchParams);
+
   useEffect(() => {
     async function fetchTrainData() {
       try {
         setLoading(true);
         setError(null);
 
-        if (!params.trainId || params.trainId === "undefined") {
+        if (!resolvedParams.trainId || resolvedParams.trainId === "undefined") {
           throw new Error("Train ID is missing or invalid");
         }
 
         console.log("Fetching coaches from API...");
         
         const url = new URL(
-          `/api/trains/${params.trainId}/detail`,
+          `/api/trains/${resolvedParams.trainId}/detail`,
           window.location.origin,
         );
-        if (searchParams.from) url.searchParams.set("from", searchParams.from);
-        if (searchParams.to) url.searchParams.set("to", searchParams.to);
+        if (resolvedSearchParams.from) url.searchParams.set("from", resolvedSearchParams.from);
+        if (resolvedSearchParams.to) url.searchParams.set("to", resolvedSearchParams.to);
 
         const response = await fetch(url.toString());
         console.log("Coaches API response status:", response.status);
@@ -93,7 +99,7 @@ export default function SeatMapPage({ params, searchParams }: PageProps) {
     }
 
     fetchTrainData();
-  }, [params.trainId, searchParams.from, searchParams.to]);
+  }, [resolvedParams.trainId, resolvedSearchParams.from, resolvedSearchParams.to]);
 
   if (loading) {
     return (
@@ -126,13 +132,13 @@ export default function SeatMapPage({ params, searchParams }: PageProps) {
     );
   }
 
-  if (!trainData || !trainData.train_classes || trainData.train_classes.length === 0) {
+  if (!trainData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
           <div className="text-gray-600 mb-4">
-            <h2 className="text-xl font-semibold">No Coach Information Available</h2>
-            <p className="text-sm mt-2">No coach data available for this train or route.</p>
+            <h2 className="text-xl font-semibold">No Train Data Available</h2>
+            <p className="text-sm mt-2">Could not load train information.</p>
           </div>
           <Button
             onClick={() => router.push("/")}
@@ -146,25 +152,63 @@ export default function SeatMapPage({ params, searchParams }: PageProps) {
     );
   }
 
-  // Extract coaches from train_classes
-  const allCoaches: CoachData[] = [];
-  trainData.train_classes.forEach((trainClass) => {
-    if (trainClass.coaches && Array.isArray(trainClass.coaches)) {
-      trainClass.coaches.forEach((coach: any) => {
-        allCoaches.push({
-          coach_id: coach.coach_id,
-          coach_code: coach.coach_code,
-          type: trainClass.class_short || 'UNKNOWN',
-          class_name: trainClass.class_name || 'Unknown Class',
-          total_seats: coach.total_seats || 50,
-          position: allCoaches.length + 1,
-          seat_layout: coach.seat_layout || [],
-          direction: coach.direction || 'forward',
-          route_code: coach.route_code || trainData.code_from_to,
+  // Extract coaches from different possible data structures
+  const allCoaches: any[] = [];
+
+  // Check train_classes first (new structure)
+  if (trainData.train_classes && Array.isArray(trainData.train_classes)) {
+    trainData.train_classes.forEach((trainClass) => {
+      if (trainClass.coaches && Array.isArray(trainClass.coaches)) {
+        trainClass.coaches.forEach((coach: any) => {
+          allCoaches.push({
+            coach_code: coach.coach_code || coach.code,
+            type: trainClass.class_short || trainClass.shortCode || 'UNKNOWN',
+            class_name: trainClass.class_name || trainClass.name || 'Unknown Class',
+            total_seats: coach.total_seats || coach.totalSeats || 50,
+            seat_layout: coach.seat_layout || coach.seatLayout || [],
+            direction: coach.direction || 'forward',
+            route_code: coach.route_code || trainData.code_from_to,
+          });
         });
+      }
+    });
+  }
+
+  // Check classes structure (alternative structure)
+  if (allCoaches.length === 0 && trainData.classes && Array.isArray(trainData.classes)) {
+    trainData.classes.forEach((trainClass) => {
+      if (trainClass.coaches && Array.isArray(trainClass.coaches)) {
+        trainClass.coaches.forEach((coach: any) => {
+          allCoaches.push({
+            coach_code: coach.coach_code || coach.code,
+            type: trainClass.class_short || trainClass.shortCode || 'UNKNOWN',
+            class_name: trainClass.class_name || trainClass.name || 'Unknown Class',
+            total_seats: coach.total_seats || coach.totalSeats || 50,
+            seat_layout: coach.seat_layout || coach.seatLayout || [],
+            direction: coach.direction || 'forward',
+            route_code: coach.route_code || trainData.code_from_to,
+          });
+        });
+      }
+    });
+  }
+
+  // Check direct coaches array (fallback)
+  if (allCoaches.length === 0 && trainData.coaches && Array.isArray(trainData.coaches)) {
+    trainData.coaches.forEach((coach: any) => {
+      allCoaches.push({
+        coach_code: coach.coach_code || coach.code,
+        type: coach.type || 'UNKNOWN',
+        class_name: coach.class_name || 'Unknown Class',
+        total_seats: coach.total_seats || coach.totalSeats || 50,
+        seat_layout: coach.seat_layout || coach.seatLayout || [],
+        direction: coach.direction || 'forward',
+        route_code: coach.route_code || trainData.code_from_to,
       });
-    }
-  });
+    });
+  }
+
+  console.log("Extracted coaches:", allCoaches);
 
   if (allCoaches.length === 0) {
     return (
@@ -173,6 +217,12 @@ export default function SeatMapPage({ params, searchParams }: PageProps) {
           <div className="text-gray-600 mb-4">
             <h2 className="text-xl font-semibold">No Coach Information Available</h2>
             <p className="text-sm mt-2">No coaches found for this train.</p>
+            <details className="mt-4 text-left">
+              <summary className="cursor-pointer text-blue-600">Debug Info</summary>
+              <pre className="text-xs mt-2 bg-gray-100 p-2 rounded overflow-auto">
+                {JSON.stringify(trainData, null, 2)}
+              </pre>
+            </details>
           </div>
           <Button
             onClick={() => router.push("/")}
@@ -186,14 +236,21 @@ export default function SeatMapPage({ params, searchParams }: PageProps) {
     );
   }
 
+  // Filter by coach if specified
+  const selectedCoach = resolvedSearchParams.coach ? 
+    allCoaches.find(coach => coach.coach_code?.toUpperCase() === resolvedSearchParams.coach?.toUpperCase()) :
+    allCoaches[0];
+
+  const coachToDisplay = selectedCoach || allCoaches[0];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 p-4 md:p-8">
       <SeatMapVisual
-        coach={allCoaches[0]} // Display the first coach
-        trainName={trainData.train_name || searchParams.trainName || "Unknown Train"}
+        coach={coachToDisplay}
+        trainName={trainData.train_name || trainData.name || resolvedSearchParams.trainName || "Unknown Train"}
         route={{
-          from: searchParams.from || trainData.from_station || "Unknown",
-          to: searchParams.to || trainData.to_station || "Unknown",
+          from: resolvedSearchParams.from || trainData.from_station || "Unknown",
+          to: resolvedSearchParams.to || trainData.to_station || "Unknown",
         }}
       />
     </div>

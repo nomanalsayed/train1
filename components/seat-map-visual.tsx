@@ -11,11 +11,9 @@ interface SeatMapProps {
     type: string
     class_name: string
     total_seats: number
-    seat_layout?: Array<Array<{
-      number: number
-      type: 'front_facing' | 'back_facing'
-      color: 'green' | 'gray'
-    }>>
+    seat_layout?: any[]
+    direction?: string
+    route_code?: string
   }
   trainName: string
   route: {
@@ -24,25 +22,56 @@ interface SeatMapProps {
   }
 }
 
-export function SeatMapVisual({ coach, trainName, route }: SeatMapProps) {
+export default function SeatMapVisual({ coach, trainName, route }: SeatMapProps) {
   const renderSeatLayout = () => {
     if (!coach.seat_layout || coach.seat_layout.length === 0) {
-      return <div className="text-center py-8 text-gray-500">No seat layout available</div>
+      // Generate default layout based on total seats
+      const totalSeats = coach.total_seats || 40
+      const halfSeats = Math.floor(totalSeats / 2)
+      const frontSeats = Array.from({length: halfSeats}, (_, i) => i + 1)
+      const backSeats = Array.from({length: totalSeats - halfSeats}, (_, i) => halfSeats + i + 1)
+      
+      return renderDefaultLayout(frontSeats, backSeats)
     }
 
-    // Split layout into front-facing (green) and back-facing (gray) sections
+    // Handle seat layout data structure
     const frontSeats: number[] = []
     const backSeats: number[] = []
 
-    coach.seat_layout.forEach(row => {
-      row.forEach(seat => {
-        if (seat.color === 'green') {
-          frontSeats.push(seat.number)
-        } else {
-          backSeats.push(seat.number)
+    // Check if seat_layout is an array of seat objects or nested arrays
+    if (Array.isArray(coach.seat_layout)) {
+      coach.seat_layout.forEach(item => {
+        if (Array.isArray(item)) {
+          // Nested array structure
+          item.forEach(seat => {
+            if (typeof seat === 'object' && seat !== null) {
+              if (seat.color === 'green' || seat.type === 'front_facing') {
+                frontSeats.push(seat.number || seat.seat_number)
+              } else {
+                backSeats.push(seat.number || seat.seat_number)
+              }
+            }
+          })
+        } else if (typeof item === 'object' && item !== null) {
+          // Direct object structure
+          if (item.color === 'green' || item.type === 'front_facing') {
+            frontSeats.push(item.number || item.seat_number)
+          } else {
+            backSeats.push(item.number || item.seat_number)
+          }
         }
       })
-    })
+    }
+
+    // If no seats found in layout, generate default
+    if (frontSeats.length === 0 && backSeats.length === 0) {
+      const totalSeats = coach.total_seats || 40
+      const halfSeats = Math.floor(totalSeats / 2)
+      const defaultFrontSeats = Array.from({length: halfSeats}, (_, i) => i + 1)
+      const defaultBackSeats = Array.from({length: totalSeats - halfSeats}, (_, i) => halfSeats + i + 1)
+      
+      return renderDefaultLayout(defaultFrontSeats, defaultBackSeats)
+    }
 
     // Sort seats
     frontSeats.sort((a, b) => a - b)
@@ -110,6 +139,18 @@ export function SeatMapVisual({ coach, trainName, route }: SeatMapProps) {
         {backSeats.length > 0 && renderSeatGrid(backSeats, 'bg-orange-500', 'Back')}
         
         {/* Front-facing seats (green) */}
+        {frontSeats.length > 0 && renderSeatGrid(frontSeats, 'bg-green-500', 'Front')}
+      </div>
+    )
+  }
+
+  const renderDefaultLayout = (frontSeats: number[], backSeats: number[]) => {
+    return (
+      <div className="space-y-4">
+        {/* Back-facing seats */}
+        {backSeats.length > 0 && renderSeatGrid(backSeats, 'bg-orange-500', 'Back')}
+        
+        {/* Front-facing seats */}
         {frontSeats.length > 0 && renderSeatGrid(frontSeats, 'bg-green-500', 'Front')}
       </div>
     )
