@@ -8,51 +8,9 @@ import { use } from "react";
 
 // Import the actual SeatMapVisual component
 import SeatMapVisual from "@/components/seat-map-visual";
+import { ApiClient } from "@/lib/api-client";
 
-// Assuming ApiClient is defined elsewhere and available in this scope
-// For example:
-// import ApiClient from "@/lib/apiClient"; 
-// If ApiClient is not available, the fetch logic will need to be restored.
-// Mocking ApiClient for demonstration purposes if it's not provided.
-const ApiClient = {
-  getTrainDetail: async (trainId: string, from?: string, to?: string) => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    console.log(`Mock API: getTrainDetail called with trainId=${trainId}, from=${from}, to=${to}`);
-    // Return a mock structure that resembles the expected data
-    return {
-      id: 1,
-      name: "Mock Train",
-      train_name: "Express 123",
-      from_station: from || "Station A",
-      to_station: to || "Station B",
-      code_from_to: `${from || "A"}-${to || "B"}`,
-      code_to_from: `${to || "B"}-${from || "A"}`,
-      classes: [
-        {
-          name: "AC First Class",
-          shortCode: "1A",
-          coaches: [
-            { code: "1A-1", totalSeats: 20, directionFlipped: false },
-            { code: "1A-2", totalSeats: 20, directionFlipped: false }
-          ]
-        },
-        {
-          name: "Sleeper",
-          shortCode: "SL",
-          coaches: [
-            { code: "SL-1", totalSeats: 72, directionFlipped: false },
-            { code: "SL-2", totalSeats: 72, directionFlipped: false },
-            { code: "SL-3", totalSeats: 72, directionFlipped: true }
-          ]
-        }
-      ],
-      routes: [],
-      train_classes: [],
-      classes: [] // Ensure this is populated or handled
-    };
-  }
-};
+
 
 interface PageProps {
   params: Promise<{
@@ -113,6 +71,8 @@ export default function SeatMapPage({
     trainName?: string
     coach?: string
   }>({})
+
+  const router = useRouter()
 
   useEffect(() => {
     const resolveParams = async () => {
@@ -295,6 +255,46 @@ export default function SeatMapPage({
           });
         });
       }
+    });
+  }
+
+  // Handle the case where coaches might be directly on trainData
+  if (allCoaches.length === 0 && trainData.coaches && Array.isArray(trainData.coaches)) {
+    trainData.coaches.forEach((coach: any) => {
+      // Create seat layout from front and back facing seats
+      const seatLayout: any[] = [];
+      
+      // Add front-facing seats
+      if (coach.front_facing_seats && Array.isArray(coach.front_facing_seats)) {
+        coach.front_facing_seats.forEach((seatNum: number) => {
+          seatLayout.push({
+            number: seatNum,
+            type: 'front_facing',
+            color: 'green'
+          });
+        });
+      }
+      
+      // Add back-facing seats
+      if (coach.back_facing_seats && Array.isArray(coach.back_facing_seats)) {
+        coach.back_facing_seats.forEach((seatNum: number) => {
+          seatLayout.push({
+            number: seatNum,
+            type: 'back_facing',
+            color: 'orange'
+          });
+        });
+      }
+
+      allCoaches.push({
+        coach_code: coach.coach_code || coach.code,
+        type: coach.type || 'UNKNOWN',
+        class_name: coach.class_name || 'Unknown Class',
+        total_seats: coach.total_seats || 50,
+        seat_layout: seatLayout,
+        direction: coach.direction || 'forward',
+        route_code: coach.route_code || trainData.code_from_to,
+      });
     });
   }
 

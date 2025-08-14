@@ -25,6 +25,8 @@ interface SeatMapProps {
 export default function SeatMapVisual({ coach, trainName, route }: SeatMapProps) {
   
   const renderSeatGrid = (seats: number[], bgColor: string, label: string) => {
+    if (!seats || seats.length === 0) return null
+    
     const rows = []
     for (let i = 0; i < seats.length; i += 10) { // 10 seats per row (5 left, 5 right)
       const rowSeats = seats.slice(i, i + 10)
