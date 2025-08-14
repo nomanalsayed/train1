@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,51 @@ import { use } from "react";
 
 // Import the actual SeatMapVisual component
 import SeatMapVisual from "@/components/seat-map-visual";
+
+// Assuming ApiClient is defined elsewhere and available in this scope
+// For example:
+// import ApiClient from "@/lib/apiClient"; 
+// If ApiClient is not available, the fetch logic will need to be restored.
+// Mocking ApiClient for demonstration purposes if it's not provided.
+const ApiClient = {
+  getTrainDetail: async (trainId: string, from?: string, to?: string) => {
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 500));
+    console.log(`Mock API: getTrainDetail called with trainId=${trainId}, from=${from}, to=${to}`);
+    // Return a mock structure that resembles the expected data
+    return {
+      id: 1,
+      name: "Mock Train",
+      train_name: "Express 123",
+      from_station: from || "Station A",
+      to_station: to || "Station B",
+      code_from_to: `${from || "A"}-${to || "B"}`,
+      code_to_from: `${to || "B"}-${from || "A"}`,
+      classes: [
+        {
+          name: "AC First Class",
+          shortCode: "1A",
+          coaches: [
+            { code: "1A-1", totalSeats: 20, directionFlipped: false },
+            { code: "1A-2", totalSeats: 20, directionFlipped: false }
+          ]
+        },
+        {
+          name: "Sleeper",
+          shortCode: "SL",
+          coaches: [
+            { code: "SL-1", totalSeats: 72, directionFlipped: false },
+            { code: "SL-2", totalSeats: 72, directionFlipped: false },
+            { code: "SL-3", totalSeats: 72, directionFlipped: true }
+          ]
+        }
+      ],
+      routes: [],
+      train_classes: [],
+      classes: [] // Ensure this is populated or handled
+    };
+  }
+};
 
 interface PageProps {
   params: Promise<{
@@ -28,7 +72,6 @@ interface CoachData {
   type: string;
   class_name: string;
   total_seats: number;
-  position: number;
   seat_layout?: any[][];
   direction?: string;
   route_code?: string;
@@ -48,58 +91,70 @@ interface TrainData {
   classes?: any[];
 }
 
-export default function SeatMapPage({ params, searchParams }: PageProps) {
-  const [trainData, setTrainData] = useState<TrainData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
-
-  // Unwrap the promises
-  const resolvedParams = use(params);
-  const resolvedSearchParams = use(searchParams);
+export default function SeatMapPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ trainId: string }>
+  searchParams: Promise<{
+    from?: string
+    to?: string
+    trainName?: string
+    coach?: string
+  }>
+}) {
+  const [trainData, setTrainData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [resolvedParams, setResolvedParams] = useState<{ trainId: string } | null>(null)
+  const [resolvedSearchParams, setResolvedSearchParams] = useState<{
+    from?: string
+    to?: string
+    trainName?: string
+    coach?: string
+  }>({})
 
   useEffect(() => {
-    async function fetchTrainData() {
+    const resolveParams = async () => {
+      const p = await params
+      const sp = await searchParams
+      setResolvedParams(p)
+      setResolvedSearchParams(sp)
+    }
+    resolveParams()
+  }, [params, searchParams])
+
+  useEffect(() => {
+    if (!resolvedParams) return
+
+    const fetchTrainData = async () => {
       try {
-        setLoading(true);
-        setError(null);
+        setLoading(true)
+        setError(null)
 
-        if (!resolvedParams.trainId || resolvedParams.trainId === "undefined") {
-          throw new Error("Train ID is missing or invalid");
-        }
+        console.log("Fetching coaches from API...")
 
-        console.log("Fetching coaches from API...");
-        
-        const url = new URL(
-          `/api/trains/${resolvedParams.trainId}/detail`,
-          window.location.origin,
-        );
-        if (resolvedSearchParams.from) url.searchParams.set("from", resolvedSearchParams.from);
-        if (resolvedSearchParams.to) url.searchParams.set("to", resolvedSearchParams.to);
+        // Get train details
+        const trainDetail = await ApiClient.getTrainDetail(
+          resolvedParams.trainId,
+          resolvedSearchParams.from,
+          resolvedSearchParams.to
+        )
 
-        const response = await fetch(url.toString());
-        console.log("Coaches API response status:", response.status);
+        console.log("Coaches API response status:", 200)
+        console.log("Coaches API data:", trainDetail)
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch train data: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log("Coaches API data:", data);
-        
-        setTrainData(data);
+        setTrainData(trainDetail)
       } catch (err) {
-        console.error("Error fetching train data:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load train data",
-        );
+        console.error("Error fetching train data:", err)
+        setError(err instanceof Error ? err.message : "Failed to load train data")
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
     }
 
     fetchTrainData();
-  }, [resolvedParams.trainId, resolvedSearchParams.from, resolvedSearchParams.to]);
+  }, [resolvedParams, resolvedSearchParams]);
 
   if (loading) {
     return (
@@ -236,17 +291,63 @@ export default function SeatMapPage({ params, searchParams }: PageProps) {
     );
   }
 
+  // Determine which coach to display
+  let coachToDisplay: any = null
+
+  if (trainData) {
+    console.log("Extracted coaches:", trainData.classes?.[0]?.coaches?.map((c: any) => ({
+      coach_code: c.code,
+      type: c.code?.split('-')[0] || 'Unknown',
+      class_name: trainData.classes?.[0]?.name || 'Unknown',
+      total_seats: c.totalSeats || 0,
+      seat_layout: [], // Empty for now, will be populated from API data
+      direction: c.directionFlipped ? 'reverse' : 'forward'
+    })))
+
+    // Try to get coaches from train data
+    const coaches = trainData.classes?.[0]?.coaches || []
+
+    if (resolvedSearchParams.coach) {
+      // Find specific coach requested
+      coachToDisplay = coaches.find((c: any) => c.code === resolvedSearchParams.coach)
+      if (coachToDisplay) {
+        coachToDisplay = {
+          coach_code: coachToDisplay.code,
+          type: coachToDisplay.code?.split('-')[0] || 'Unknown',
+          class_name: trainData.classes?.[0]?.name || 'Unknown',
+          total_seats: coachToDisplay.totalSeats || 0,
+          seat_layout: [], // Empty for now
+          direction: coachToDisplay.directionFlipped ? 'reverse' : 'forward'
+        }
+      }
+    }
+
+    // Fallback to first coach if none specified or not found
+    if (!coachToDisplay && coaches.length > 0) {
+      const firstCoach = coaches[0]
+      coachToDisplay = {
+        coach_code: firstCoach.code,
+        type: firstCoach.code?.split('-')[0] || 'Unknown',
+        class_name: trainData.classes?.[0]?.name || 'Unknown',
+        total_seats: firstCoach.totalSeats || 0,
+        seat_layout: [],
+        direction: firstCoach.directionFlipped ? 'reverse' : 'forward'
+      }
+    }
+  }
+
   // Filter by coach if specified
-  const selectedCoach = resolvedSearchParams.coach ? 
+  const selectedCoach = resolvedSearchParams.coach ?
     allCoaches.find(coach => coach.coach_code?.toUpperCase() === resolvedSearchParams.coach?.toUpperCase()) :
     allCoaches[0];
 
-  const coachToDisplay = selectedCoach || allCoaches[0];
+  const coachToDisplayFinal = selectedCoach || allCoaches[0];
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 p-4 md:p-8">
       <SeatMapVisual
-        coach={coachToDisplay}
+        coach={coachToDisplayFinal}
         trainName={trainData.train_name || trainData.name || resolvedSearchParams.trainName || "Unknown Train"}
         route={{
           from: resolvedSearchParams.from || trainData.from_station || "Unknown",

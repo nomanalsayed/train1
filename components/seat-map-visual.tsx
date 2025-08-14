@@ -23,6 +23,61 @@ interface SeatMapProps {
 }
 
 export default function SeatMapVisual({ coach, trainName, route }: SeatMapProps) {
+  const rows = []
+    for (let i = 0; i < seats.length; i += 10) { // 10 seats per row (5 left, 5 right)
+      const rowSeats = seats.slice(i, i + 10)
+      rows.push(
+        <div key={i} className="flex justify-center gap-1 mb-1">
+          {/* Left side - 5 seats */}
+          <div className="flex gap-1">
+            {rowSeats.slice(0, 5).map(seatNum => (
+              <div
+                key={seatNum}
+                className={`w-8 h-8 ${bgColor} rounded text-xs text-white flex items-center justify-center font-medium`}
+              >
+                {seatNum}
+              </div>
+            ))}
+          </div>
+          
+          {/* Aisle space */}
+          <div className="w-4"></div>
+          
+          {/* Right side - 5 seats */}
+          <div className="flex gap-1">
+            {rowSeats.slice(5, 10).map(seatNum => (
+              <div
+                key={seatNum}
+                className={`w-8 h-8 ${bgColor} rounded text-xs text-white flex items-center justify-center font-medium`}
+              >
+                {seatNum}
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className={`${bgColor === 'bg-orange-500' ? 'bg-orange-100' : 'bg-green-100'} p-4 rounded-lg relative`}>
+        {/* Direction label */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div 
+            className="text-4xl font-bold text-black opacity-20 transform -rotate-90"
+            style={{ writingMode: 'vertical-lr' }}
+          >
+            {label}
+          </div>
+        </div>
+        
+        {/* Seats grid */}
+        <div className="relative z-10">
+          {rows}
+        </div>
+      </div>
+    )
+  }
+
   const renderSeatLayout = () => {
     if (!coach.seat_layout || coach.seat_layout.length === 0) {
       // Generate default layout based on total seats
@@ -76,62 +131,6 @@ export default function SeatMapVisual({ coach, trainName, route }: SeatMapProps)
     // Sort seats
     frontSeats.sort((a, b) => a - b)
     backSeats.sort((a, b) => a - b)
-
-    const renderSeatGrid = (seats: number[], bgColor: string, label: string) => {
-      const rows = []
-      for (let i = 0; i < seats.length; i += 10) { // 10 seats per row (5 left, 5 right)
-        const rowSeats = seats.slice(i, i + 10)
-        rows.push(
-          <div key={i} className="flex justify-center gap-1 mb-1">
-            {/* Left side - 5 seats */}
-            <div className="flex gap-1">
-              {rowSeats.slice(0, 5).map(seatNum => (
-                <div
-                  key={seatNum}
-                  className={`w-8 h-8 ${bgColor} rounded text-xs text-white flex items-center justify-center font-medium`}
-                >
-                  {seatNum}
-                </div>
-              ))}
-            </div>
-            
-            {/* Aisle space */}
-            <div className="w-4"></div>
-            
-            {/* Right side - 5 seats */}
-            <div className="flex gap-1">
-              {rowSeats.slice(5, 10).map(seatNum => (
-                <div
-                  key={seatNum}
-                  className={`w-8 h-8 ${bgColor} rounded text-xs text-white flex items-center justify-center font-medium`}
-                >
-                  {seatNum}
-                </div>
-              ))}
-            </div>
-          </div>
-        )
-      }
-
-      return (
-        <div className={`${bgColor === 'bg-orange-500' ? 'bg-orange-100' : 'bg-green-100'} p-4 rounded-lg relative`}>
-          {/* Direction label */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div 
-              className="text-4xl font-bold text-black opacity-20 transform -rotate-90"
-              style={{ writingMode: 'vertical-lr' }}
-            >
-              {label}
-            </div>
-          </div>
-          
-          {/* Seats grid */}
-          <div className="relative z-10">
-            {rows}
-          </div>
-        </div>
-      )
-    }
 
     return (
       <div className="space-y-4">
