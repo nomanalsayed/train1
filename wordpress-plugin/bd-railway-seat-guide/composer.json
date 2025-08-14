@@ -1,0 +1,34 @@
+{
+  "name": "bd-railway/seat-guide-pro",
+  "description": "Complete Bangladesh Railway seat orientation system with mobile-optimized APIs",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0-or-later",
+  "authors": [
+    {
+      "name": "BD Railway Team",
+      "email": "info@bd-railway.com"
+    }
+  ],
+  "require": {
+    "php": ">=7.4"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^9.0",
+    "wp-coding-standards/wpcs": "^2.3"
+  },
+  "autoload": {
+    "psr-4": {
+      "BDRailway\\": "includes/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit",
+    "cs": "phpcs --standard=WordPress .",
+    "cbf": "phpcbf --standard=WordPress ."
+  },
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    }
+  }
+}
