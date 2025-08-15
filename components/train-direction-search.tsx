@@ -17,6 +17,16 @@ interface TrainResult {
   code_to_from?: string
 }
 
+// Define the props interface for TrainDirectionSearch, including the optional trainId
+interface Props {
+  trainId?: string
+  onSearch: (params: {
+    fromStation: string
+    toStation: string
+    coach?: string
+  }) => void
+}
+
 /**
  * PURPOSE: Main search interface for finding trains and seat directions
  *
@@ -27,7 +37,7 @@ interface TrainResult {
  * - Navigate to seat direction guides or seat maps
  * - Handle all search logic and form validation
  */
-export function TrainDirectionSearch() {
+export function TrainDirectionSearch({ trainId, onSearch }: Props) {
   const router = useRouter()
   const [searchType, setSearchType] = useState<"route" | "train">("route")
   const [fromStation, setFromStation] = useState("")
@@ -146,11 +156,13 @@ export function TrainDirectionSearch() {
     return <StationSearch onSelect={handleStationSelect} onBack={() => setShowStationSearch(null)} />
   }
 
+  // Render CoachSelection with trainId prop
   if (showCoachSelection) {
     return (
       <CoachSelection
         fromStation={fromStation}
         toStation={toStation}
+        trainId={trainId} // Pass the trainId prop here
         onSelect={handleCoachSelect}
         onBack={() => setShowCoachSelection(false)}
       />
