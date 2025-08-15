@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowUpDown, Search, Train, MapPin } from "lucide-react"
 import { StationSearch } from "./station-search"
 import { CoachSelection } from "./coach-selection"
+import { useRouter } from 'next/navigation'
 
 interface TrainResult {
   id: string
@@ -27,6 +28,7 @@ interface TrainResult {
  * - Handle all search logic and form validation
  */
 export function TrainDirectionSearch() {
+  const router = useRouter()
   const [searchType, setSearchType] = useState<"route" | "train">("route")
   const [fromStation, setFromStation] = useState("")
   const [toStation, setToStation] = useState("")
@@ -42,7 +44,7 @@ export function TrainDirectionSearch() {
     if (searchType === "route" && fromStation && toStation) {
       // Check if this is reverse direction (from Panchagarh to Dhaka, etc.)
       const isReverseDirection = train.from_station?.toLowerCase() !== fromStation.toLowerCase()
-      
+
       // If we have route-specific codes, use them
       if (train.code_to_from && isReverseDirection) {
         return train.code_to_from
@@ -50,7 +52,7 @@ export function TrainDirectionSearch() {
         return train.code_from_to
       }
     }
-    
+
     // Fallback to the number field
     return train.number || train.id
   }
@@ -202,7 +204,7 @@ export function TrainDirectionSearch() {
                     <div className="font-bold text-gray-900 text-sm">
                       {searchType === "route" ? fromStation : train.from_station}
                     </div>
-                  </div>v>
+                  </div>
 
                   <div className="flex-1 flex items-center justify-center px-4">
                     <div className="text-center">
@@ -230,16 +232,14 @@ export function TrainDirectionSearch() {
                       return
                     }
                     const params = new URLSearchParams({
-                      from: String(train.from_station),
-                      to: String(train.to_station),
+                      from: String(searchType === "route" ? fromStation : train.from_station),
+                      to: String(searchType === "route" ? toStation : train.to_station),
                       trainName: String(train.name),
                     })
-
                     if (selectedCoach) {
-                      params.set("coach", selectedCoach)
+                      params.append("coach", selectedCoach)
                     }
-
-                    window.location.href = `/trains/${trainIdentifier}/seats?${params.toString()}`
+                    router.push(`/trains/${trainIdentifier}/seats?${params.toString()}`)
                   }}
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-md font-semibold transition-colors"
                 >

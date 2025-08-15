@@ -55,7 +55,9 @@ export async function GET(request: NextRequest) {
       coaches = data.coaches.map(coach => ({
         id: coach.id,
         code: coach.code || coach.coach_code || "",
-        name: coach.name || coach.code || coach.coach_code || "",
+        name: coach.name && coach.name !== coach.code 
+          ? coach.name 
+          : `${coach.code} Coach`,
         total_seats: coach.total_seats || 60,
         front_facing_seats: coach.front_facing_seats || [],
         back_facing_seats: coach.back_facing_seats || [],
@@ -64,16 +66,16 @@ export async function GET(request: NextRequest) {
     } else {
       // Fallback coaches
       coaches = [
-        { id: 1, code: "UMA", name: "UMA", total_seats: 60, front_facing_seats: [], back_facing_seats: [] },
-        { id: 2, code: "CHA", name: "CHA", total_seats: 80, front_facing_seats: [], back_facing_seats: [] },
-        { id: 3, code: "SCHA", name: "SCHA", total_seats: 75, front_facing_seats: [], back_facing_seats: [] },
-        { id: 4, code: "JHA", name: "JHA", total_seats: 70, front_facing_seats: [], back_facing_seats: [] },
-        { id: 5, code: "KHA", name: "KHA", total_seats: 65, front_facing_seats: [], back_facing_seats: [] },
-        { id: 6, code: "GHA", name: "GHA", total_seats: 72, front_facing_seats: [], back_facing_seats: [] },
-        { id: 7, code: "TA", name: "TA", total_seats: 68, front_facing_seats: [], back_facing_seats: [] },
-        { id: 8, code: "THA", name: "THA", total_seats: 74, front_facing_seats: [], back_facing_seats: [] },
-        { id: 9, code: "DA", name: "DA", total_seats: 66, front_facing_seats: [], back_facing_seats: [] },
-        { id: 10, code: "DHA", name: "DHA", total_seats: 71, front_facing_seats: [], back_facing_seats: [] },
+        { id: 1, code: "UMA", name: "First Class AC Chair", total_seats: 60, front_facing_seats: [], back_facing_seats: [] },
+        { id: 2, code: "CHA", name: "Chair Coach", total_seats: 80, front_facing_seats: [], back_facing_seats: [] },
+        { id: 3, code: "SCHA", name: "Shuvon Chair", total_seats: 75, front_facing_seats: [], back_facing_seats: [] },
+        { id: 4, code: "JHA", name: "First Class Chair", total_seats: 70, front_facing_seats: [], back_facing_seats: [] },
+        { id: 5, code: "KHA", name: "Second Class Chair", total_seats: 65, front_facing_seats: [], back_facing_seats: [] },
+        { id: 6, code: "GHA", name: "General Chair", total_seats: 72, front_facing_seats: [], back_facing_seats: [] },
+        { id: 7, code: "TA", name: "Third Class Chair", total_seats: 68, front_facing_seats: [], back_facing_seats: [] },
+        { id: 8, code: "THA", name: "Third Class Chair", total_seats: 74, front_facing_seats: [], back_facing_seats: [] },
+        { id: 9, code: "DA", name: "Dhaka Chair", total_seats: 66, front_facing_seats: [], back_facing_seats: [] },
+        { id: 10, code: "DHA", name: "Dhaka Chair", total_seats: 71, front_facing_seats: [], back_facing_seats: [] },
       ]
       console.log("[Next.js API] Using fallback coaches")
     }

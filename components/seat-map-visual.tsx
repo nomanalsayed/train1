@@ -287,8 +287,14 @@ export default function SeatMapVisual({ coach, trainName, route, allCoaches = []
                       : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-300 hover:bg-emerald-50'
                   }`}
                 >
-                  <div className="font-semibold">{coachOption.coach_name || coachOption.coach_code}</div>
+                  <div className="font-semibold">
+                    {coachOption.coach_name && coachOption.coach_name !== coachOption.coach_code 
+                      ? coachOption.coach_name 
+                      : `${coachOption.type} Coach ${coachOption.coach_code?.split('-')[1] || coachOption.coach_code}`
+                    }
+                  </div>
                   <div className="text-xs text-gray-500 mt-1">{coachOption.total_seats} seats</div>
+                  <div className="text-xs text-gray-400 mt-0.5">{coachOption.coach_code}</div>
                 </button>
               ))}
             </div>

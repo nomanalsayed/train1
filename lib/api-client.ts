@@ -37,6 +37,8 @@ export interface RouteStation {
 export interface Coach {
   id: number
   code: string
+  name?: string
+  type?: string
   totalSeats: number
   frontFacingSeats: number[]
   backFacingSeats: number[]
